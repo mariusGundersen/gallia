@@ -6,9 +6,7 @@ const object = {
   visible: true
 };
 
-const proxy = new Proxy({
-  visible: true
-}, {
+const proxy = new Proxy(object, {
   get(target, prop, receiver) {
     return Reflect.get(target, prop, receiver);
   },
@@ -17,11 +15,24 @@ const proxy = new Proxy({
   }
 });
 
-suite.add('basic object', () => {
-  object.visible = !object.visible;
-})
+const getseter = {
+  get visible(){
+    return object.visible;
+  },
+  set visible(value){
+    object.visible = value;
+  }
+}
+
+suite
+  .add('basic object', () => {
+    object.visible = !object.visible;
+  })
   .add('proxy object', () => {
     proxy.visible = !proxy.visible;
+  })
+  .add('getseter object', () => {
+    getseter.visible = !getseter.visible;
   })
   // add listeners
   .on('cycle', function (event) {
