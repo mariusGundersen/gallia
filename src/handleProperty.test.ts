@@ -1,3 +1,3 @@
-test('handleProperty', () => {
-  var element = document.createElement('div');
+test("handleProperty", () => {
+  var element = document.createElement("div");
 });

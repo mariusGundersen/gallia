@@ -1,17 +1,21 @@
-import { context, makeObservable, Observable } from './observable';
+import {
+  globalObservationScope,
+  makeObservable,
+  Observable,
+} from "./observable";
 
 class DataTest extends Observable {
-  visible = false
+  visible = false;
 }
 
-test('Observable object', () => {
+test("Observable object", () => {
   const data = makeObservable({
-    visible: false
+    visible: false,
   });
 
   const spy = jest.fn();
 
-  context.observeAndReact(() => data.visible, spy);
+  globalObservationScope.observeAndReact(() => data.visible, spy);
 
   expect(spy).toHaveBeenCalledWith(false);
 
@@ -20,9 +24,9 @@ test('Observable object', () => {
   expect(spy).toHaveBeenCalledWith(true);
 });
 
-test('Observable object getting', () => {
+test("Observable object getting", () => {
   const data = makeObservable({
-    visible: false
+    visible: false,
   });
 
   data.visible = true;
@@ -30,12 +34,12 @@ test('Observable object getting', () => {
   expect(data.visible).toBe(true);
 });
 
-test('Observable subclass', () => {
+test("Observable subclass", () => {
   const data = new DataTest();
 
   const spy = jest.fn();
 
-  context.observeAndReact(() => data.visible, spy);
+  globalObservationScope.observeAndReact(() => data.visible, spy);
 
   expect(spy).toHaveBeenCalledWith(false);
 
@@ -44,24 +48,27 @@ test('Observable subclass', () => {
   expect(spy).toHaveBeenCalledWith(true);
 });
 
-test('Observable subclass new property', () => {
-  const data = new DataTest() as DataTest & {something: boolean};
+test("Observable subclass new property", () => {
+  const data = new DataTest() as DataTest & { something: boolean };
 
   const spy = jest.fn();
 
-  context.observeAndReact(() => data.something, spy);
+  globalObservationScope.observeAndReact(() => data.something, spy);
 
   data.something = true;
 
   expect(spy).toHaveBeenCalledWith(true);
 });
 
-test('Unobserve', () => {
+test("Unobserve", () => {
   const data = new DataTest();
 
   const spy = jest.fn();
 
-  const unobserve = context.observeAndReact(() => data.visible, spy);
+  const unobserve = globalObservationScope.observeAndReact(
+    () => data.visible,
+    spy
+  );
 
   expect(spy).toHaveBeenCalledWith(false);
 
@@ -78,16 +85,15 @@ test('Unobserve', () => {
   expect(spy).not.toHaveBeenCalled();
 });
 
-describe("SubContext", () => {
-
-  test('create, use and destroy', () => {
+describe("Scopes", () => {
+  test("create, use and destroy", () => {
     const data = new DataTest();
 
     const spy = jest.fn();
 
-    const { subContext, destroySubContext } = context.createSubContext();
+    const { scope, destroy } = globalObservationScope.createSubScope();
 
-    subContext.observeAndReact(() => data.visible, spy);
+    scope.observeAndReact(() => data.visible, spy);
 
     expect(spy).toHaveBeenCalledWith(false);
 
@@ -95,7 +101,7 @@ describe("SubContext", () => {
 
     expect(spy).toHaveBeenCalledWith(true);
 
-    destroySubContext();
+    destroy();
 
     spy.mockClear();
 
@@ -104,12 +110,14 @@ describe("SubContext", () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
-  test('unobserve subcontext', () => {
+  test("unobserve scope", () => {
     const data = new DataTest();
 
     const spy = jest.fn();
 
-    const unobserve = context.createSubContext().subContext.observeAndReact(() => data.visible, spy);
+    const unobserve = globalObservationScope
+      .createSubScope()
+      .scope.observeAndReact(() => data.visible, spy);
 
     expect(spy).toHaveBeenCalledWith(false);
 
@@ -126,43 +134,97 @@ describe("SubContext", () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
-  test('observe destroyed subContext', () => {
+  test("observe destroyed scope", () => {
     const data = new DataTest();
 
     const spy = jest.fn();
 
-    const { subContext, destroySubContext } = context.createSubContext();
+    const { scope, destroy } = globalObservationScope.createSubScope();
 
-    destroySubContext();
+    destroy();
 
-    expect(() => subContext.observeAndReact(() => data.visible, spy)).toThrowError();
+    expect(() => scope.observeAndReact(() => data.visible, spy)).toThrowError();
   });
 
-  test('unobserve destroyed subContext', () => {
+  test("unobserve destroyed scope", () => {
     const data = new DataTest();
 
     const spy = jest.fn();
 
-    const { subContext, destroySubContext } = context.createSubContext();
+    const { scope, destroy } = globalObservationScope.createSubScope();
 
-    const unobserve =  subContext.observeAndReact(() => data.visible, spy);
+    const unobserve = scope.observeAndReact(() => data.visible, spy);
 
-    destroySubContext();
+    destroy();
 
     expect(() => unobserve()).toThrowError();
   });
 
-  test('destroy already destroyed subContext', () => {
-    const data = new DataTest();
+  test("destroy already destroyed scope", () => {
+    const { destroy } = globalObservationScope.createSubScope();
+
+    destroy();
+
+    expect(() => destroy()).toThrowError();
+  });
+
+  test("destroy already destroyed sub-scope", () => {
+    const { scope, destroy } = globalObservationScope.createSubScope();
+
+    const { destroy: destroySubScope } = scope.createSubScope();
+
+    destroy();
+
+    expect(() => destroySubScope()).toThrowError();
+  });
+
+  test("destroy scope with destroyed sub-scope", () => {
+    const { scope, destroy } = globalObservationScope.createSubScope();
+
+    const { destroy: destroySubScope } = scope.createSubScope();
+
+    destroySubScope();
+
+    expect(() => destroy()).not.toThrowError();
+  });
+
+  test("onDestroy", () => {
+    const { scope, destroy } = globalObservationScope.createSubScope();
 
     const spy = jest.fn();
 
-    const { subContext, destroySubContext } = context.createSubContext();
+    scope.onDestroy(spy);
 
-    const unobserve =  subContext.observeAndReact(() => data.visible, spy);
+    destroy();
 
-    destroySubContext();
+    expect(spy).toHaveBeenCalled();
+  });
 
-    expect(() => destroySubContext()).toThrowError();
+  test("onDestroy in sub-scope", () => {
+    const { scope, destroy } = globalObservationScope.createSubScope();
+
+    const { scope: subScope } = scope.createSubScope();
+
+    const spy = jest.fn();
+
+    subScope.onDestroy(spy);
+
+    destroy();
+
+    expect(spy).toHaveBeenCalled();
+  });
+
+  test("onDestroy in parent-scope", () => {
+    const { scope } = globalObservationScope.createSubScope();
+
+    const { scope: subScope, destroy } = scope.createSubScope();
+
+    const spy = jest.fn();
+
+    scope.onDestroy(spy);
+
+    destroy();
+
+    expect(spy).not.toHaveBeenCalled();
   });
 });

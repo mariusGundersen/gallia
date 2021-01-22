@@ -1,0 +1,47 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`for empty list 1`] = `
+"
+        <!--for (item of list) {--><!--}-->
+      "
+`;
+
+exports[`for five items 1`] = `
+"
+        <!--for (item of list) {--><!--start of 0 with key 0-->
+          Something
+        <!--end of 0--><!--start of 1 with key 1-->
+          Something
+        <!--end of 1--><!--start of 2 with key 2-->
+          Something
+        <!--end of 2--><!--start of 3 with key 3-->
+          Something
+        <!--end of 3--><!--start of 4 with key 4-->
+          Something
+        <!--end of 4--><!--}-->
+      "
+`;
+
+exports[`for iterator with five items 1`] = `
+"
+        <!--for (item of list()) {--><!--start of 0 with key 0-->
+          Something
+        <!--end of 0--><!--start of 1 with key 1-->
+          Something
+        <!--end of 1--><!--start of 2 with key 2-->
+          Something
+        <!--end of 2--><!--start of 3 with key 3-->
+          Something
+        <!--end of 3--><!--start of 4 with key 4-->
+          Something
+        <!--end of 4--><!--}-->
+      "
+`;
+
+exports[`for one item 1`] = `
+"
+        <!--for (item of list) {--><!--start of 0 with key 0-->
+          Something
+        <!--end of 0--><!--}-->
+      "
+`;

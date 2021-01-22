@@ -1,38 +1,108 @@
 import { handleIf } from "./handleIf";
-import { context, makeObservable } from "./observable";
+import { globalObservationScope, makeObservable } from "./observable";
+import { createElementFromHTML } from "./testUtils";
 
-test('if false', () => {
-  const parent = document.createElement('div');
-  const template = document.createElement('template');
-  template.innerHTML = 'Something';
-  template.setAttribute('x-if', 'visible');
-  parent.appendChild(template);
-  const data = makeObservable({
-    visible: false
-  });
-  handleIf(template, data, context);
-  expect(parent.firstChild?.nodeName).toBe('#comment');
-  expect(parent.firstChild?.textContent).toBe('if (visible) {');
-  expect(parent.lastChild?.nodeName).toBe('#comment');
-  expect(parent.lastChild?.textContent).toBe('}');
-  expect(parent.childNodes.length).toBe(2);
-  expect(parent.textContent).toBe('');
-});
+describe("if", () => {
+  test.each([true, false])("if %s", (visible) => {
+    const parent = createElementFromHTML(`
+      <div>
+        <template x-if="visible">
+          Something
+        </template>
+      </div>
+    `);
 
-test('if true', () => {
-  const parent = document.createElement('div');
-  const template = document.createElement('template');
-  template.innerHTML = 'Something';
-  template.setAttribute('x-if', 'visible');
-  parent.appendChild(template);
-  const data = makeObservable({
-    visible: true
+    const data = {
+      visible,
+    };
+
+    handleIf(
+      parent.firstElementChild as HTMLTemplateElement,
+      data,
+      globalObservationScope
+    );
+
+    expect(parent.innerHTML).toMatchSnapshot();
   });
-  handleIf(template, data, context);
-  expect(parent.firstChild?.nodeName).toBe('#comment');
-  expect(parent.firstChild?.textContent).toBe('if (visible) {');
-  expect(parent.lastChild?.nodeName).toBe('#comment');
-  expect(parent.lastChild?.textContent).toBe('}');
-  expect(parent.childNodes.length).toBe(3);
-  expect(parent.textContent).toBe('Something');
+
+  test("if true then walk should be called with data", () => {
+    const parent = createElementFromHTML(`
+      <div>
+        <template x-if="visible">
+          Something
+        </template>
+      </div>
+    `);
+
+    const data = makeObservable({
+      visible: true,
+    });
+
+    const spy = jest.fn();
+
+    handleIf(
+      parent.firstElementChild as HTMLTemplateElement,
+      data,
+      globalObservationScope,
+      spy
+    );
+
+    expect(spy).toHaveBeenCalled();
+
+    expect(spy.mock.calls[0][1]).toBe(data);
+  });
+
+  test("if false then true", () => {
+    const parent = createElementFromHTML(`
+      <div>
+        <template x-if="visible">
+          Something
+        </template>
+      </div>
+    `);
+
+    const data = makeObservable({
+      visible: false,
+    });
+
+    const spy = jest.fn();
+
+    handleIf(
+      parent.firstElementChild as HTMLTemplateElement,
+      data,
+      globalObservationScope,
+      spy
+    );
+
+    data.visible = true;
+
+    expect(parent.innerHTML).toMatchSnapshot();
+  });
+
+  test("if true then false scope should be destroyed", () => {
+    const parent = createElementFromHTML(`
+      <div>
+        <template x-if="visible">
+          Something
+        </template>
+      </div>
+    `);
+
+    const data = makeObservable({
+      visible: true,
+    });
+
+    const spy = jest.fn();
+
+    handleIf(
+      parent.firstElementChild as HTMLTemplateElement,
+      data,
+      globalObservationScope,
+      (_n, _d, scope) => scope.onDestroy(spy)
+    );
+
+    data.visible = false;
+
+    expect(spy).toHaveBeenCalled();
+  });
 });

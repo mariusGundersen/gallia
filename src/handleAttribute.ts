@@ -1,16 +1,26 @@
-import { Context } from "./observable";
+import { ObservationScope } from "./observable";
 import { makeExpressionEvaluator } from "./utils";
 
-export default function handleAttributes(element: Element, data: unknown, context: Context){
-  Array
-    .from(element.attributes)
-    .filter(a => a.name.startsWith('@'))
-    .forEach(a => handleAttribute(a, data, context));
+export default function handleAttributes(
+  element: Element,
+  data: object,
+  scope: ObservationScope
+) {
+  Array.from(element.attributes)
+    .filter((a) => a.name.startsWith("@"))
+    .forEach((a) => handleAttribute(a, data, scope));
 }
 
-export function handleAttribute(attr: Attr, data: unknown, context: Context){
+export function handleAttribute(
+  attr: Attr,
+  data: object,
+  scope: ObservationScope
+) {
   const element = attr.ownerElement;
   const name = attr.name.substr(1);
   const expression = makeExpressionEvaluator(attr.value);
-  context.observeAndReact(() => expression(data), value => element!.setAttribute(name, value));
+  scope.observeAndReact(
+    () => expression(data),
+    (value) => element!.setAttribute(name, value)
+  );
 }

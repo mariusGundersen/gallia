@@ -1,0 +1,23 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`if if false 1`] = `
+"
+        <!--if (visible) {--><!--}-->
+      "
+`;
+
+exports[`if if false then true 1`] = `
+"
+        <!--if (visible) {-->
+          Something
+        <!--}-->
+      "
+`;
+
+exports[`if if true 1`] = `
+"
+        <!--if (visible) {-->
+          Something
+        <!--}-->
+      "
+`;

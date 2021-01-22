@@ -16,15 +16,17 @@ const proxy = new Proxy(object, {
 });
 
 const getseter = {
-  get visible(){
+  get visible() {
     return object.visible;
   },
-  set visible(value){
+  set visible(value) {
     object.visible = value;
   }
 }
 
 suite
+  .add('do nothing', () => {
+  })
   .add('basic object', () => {
     object.visible = !object.visible;
   })

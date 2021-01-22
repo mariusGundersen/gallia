@@ -1,8 +1,11 @@
 export type Observer = () => void;
+type Listener = () => void;
+
+export type ObservableObject = Record<string, unknown>;
 
 type Key = string | number | symbol;
 
-type TargetPropTuple = [object, Key];
+type TargetPropTuple = [ObservableObject, Key];
 
 class Observed {
   listeners = new Set<Observer>();
@@ -35,7 +38,7 @@ let currentObserver: Observer | undefined;
 // observer -> object -> property
 // object[propeprty] -> observer
 // They are weakmaps so that we don't leak memory
-const subscriptions = new WeakMap<object, Map<Key, Observed>>();
+const subscriptions = new WeakMap<ObservableObject, Map<Key, Observed>>();
 
 const reverseSubscriptions = new WeakMap<Observer, TargetPropTuple[]>();
 
@@ -59,18 +62,18 @@ function clearObserver(observer: Observer) {
  *
  * @param object The object we want to observe
  */
-export function makeObservable<T extends object>(object: T): T {
+export function makeObservable<T extends ObservableObject>(object: T): T {
   // All the properties on the object can be observed
   const listeners = new Map<Key, Observed>();
 
   const getOrCreate = (key: Key) => {
     const found = listeners.get(key);
-    if(found) return found;
+    if (found) return found;
 
     const created = new Observed();
     listeners.set(key, created);
     return created;
-  }
+  };
 
   const result = new Proxy(object, {
     get(target, prop, receiver) {
@@ -85,10 +88,10 @@ export function makeObservable<T extends object>(object: T): T {
       getOrCreate(prop).notify();
       return result;
     },
-    deleteProperty(target, prop){
+    deleteProperty(target, prop) {
       listeners.delete(prop);
       return Reflect.deleteProperty(target, prop);
-    }
+    },
   });
   subscriptions.set(result, listeners);
   return result;
@@ -97,13 +100,12 @@ export function makeObservable<T extends object>(object: T): T {
 /**
  * Extend this class to become observable
  */
-export class Observable{
-  constructor(){
-    return makeObservable(this);
+export class Observable {
+  constructor() {
+    return makeObservable(this as ObservableObject);
   }
 }
 
-type Observe = typeof observe;
 function observe<T>(observer: Observer, getter: () => T) {
   clearObserver(observer);
   currentObserver = observer;
@@ -115,52 +117,105 @@ function observe<T>(observer: Observer, getter: () => T) {
   }
 }
 
-type Unobserve = typeof unobserve;
 function unobserve(observer: Observer) {
   // Forget everything we know about this observer
   clearObserver(observer);
 }
 
-
-function createContext(observe: Observe, unobserve: Unobserve){
-  return {
-    observeAndReact<T>(
-      getter: () => T,
-      reaction: (value: T) => void) {
-        const observer = () => reaction(observe(observer, getter));
-        observer();
-        return () => unobserve(observer);
-    },
-    createSubContext(){
-      let observers = new Set<Observer>() as (Set<Observer> | null);
-
-      return {
-        subContext: createContext(
-          (observer, effect) => {
-            if(!observers) throw new Error("Attempted to observe a destroyed context");
-            observers.add(observer);
-            return observe(observer, effect);
-          },
-          (observer) => {
-            if(!observers) throw new Error("Attempted to unobserve a destroyed context");
-            observers.delete(observer);
-            unobserve(observer)
-          }
-        ),
-        destroySubContext(){
-          if(!observers) throw new Error("Attempted to destory an already destoryed context");
-          for(const observer of observers){
-            unobserve(observer);
-          }
-          observers = null;
-        }
-      }
-    }
-  }
+interface Destroyable {
+  addDestroyListener(listener: Listener): void;
+  removeDestroyListener(listener: Listener): void;
 }
 
-const rootContext = createContext(observe, unobserve);
+interface Context extends Destroyable {
+  observe<T>(observer: Observer, getter: () => T): T;
+  unobserve(observer: Observer): void;
+}
 
-export { rootContext as context };
+const rootContext: Context = {
+  observe,
+  unobserve,
+  addDestroyListener() {},
+  removeDestroyListener() {},
+};
 
-export type Context = typeof rootContext;
+export interface ObservationScope {
+  observeAndReact<T>(getter: () => T, reaction: (value: T) => void): () => void;
+  onDestroy(listener: Listener): void;
+  createSubScope(): { scope: ObservationScope; destroy(): void };
+}
+
+function createObservationScope(context: Context): ObservationScope {
+  return {
+    observeAndReact<T>(getter: () => T, reaction: (value: T) => void) {
+      const observer = () => reaction(context.observe(observer, getter));
+      observer();
+      return () => context.unobserve(observer);
+    },
+    onDestroy(listener: Listener) {
+      context.addDestroyListener(listener);
+    },
+    createSubScope() {
+      const [destroy, subContext] = createSubContext(context);
+      return {
+        scope: createObservationScope(subContext),
+        destroy,
+      };
+    },
+  };
+}
+
+const globalObservationScope = createObservationScope(rootContext);
+
+export { globalObservationScope };
+
+function createSubContext({
+  addDestroyListener,
+  removeDestroyListener,
+}: Destroyable): [() => void, Context] {
+  let observers: Set<Observer> | null = new Set<Observer>();
+  const destroyListeners = new Set<Listener>();
+
+  function destroy() {
+    if (!observers)
+      throw new Error("Attempted to destory an already destroyed scope");
+
+    removeDestroyListener(destroy);
+
+    for (const observer of observers) {
+      unobserve(observer);
+    }
+
+    for (const destroyListener of destroyListeners) {
+      destroyListener();
+    }
+
+    observers = null;
+  }
+
+  addDestroyListener(destroy);
+
+  const subContext = {
+    observe<T>(observer: Observer, effect: () => T) {
+      if (!observers) throw new Error("Attempted to observe a destroyed scope");
+
+      observers.add(observer);
+      return observe(observer, effect);
+    },
+    unobserve(observer: Observer) {
+      if (!observers)
+        throw new Error("Attempted to unobserve a destroyed scope");
+
+      observers.delete(observer);
+      unobserve(observer);
+    },
+    addDestroyListener(listener: Listener) {
+      destroyListeners.add(listener);
+    },
+    removeDestroyListener(listener: Listener) {
+      destroyListeners.delete(listener);
+    },
+  };
+
+  return [destroy, subContext];
+}

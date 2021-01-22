@@ -1,24 +1,23 @@
 import { makeExpressionEvaluator, makeTextEvaluator } from "./utils";
 
-test('expressionEvaluator', () => {
-  const expression = makeExpressionEvaluator('45');
+test("expressionEvaluator", () => {
+  const expression = makeExpressionEvaluator("45");
 
   expect(expression({})).toBe(45);
 });
 
+test("textEvaluator with string", () => {
+  const expression = makeTextEvaluator("test");
 
-test('textEvaluator with string', () => {
-  const expression = makeTextEvaluator('test');
-
-  expect(expression({})).toBe('test');
+  expect(expression({})).toBe("test");
 });
 
-test('textEvaluator with string interpolation', () => {
-  const expression = makeTextEvaluator('hello ${value}');
+test("textEvaluator with string interpolation", () => {
+  const expression = makeTextEvaluator("hello ${value}");
 
-  expect(expression({value: 'world'})).toBe('hello world');
+  expect(expression({ value: "world" })).toBe("hello world");
 });
 
-test('textEvaluator with syntax error', () => {
-  expect(() => makeTextEvaluator('hello ${value')).toThrow();
+test("textEvaluator with syntax error", () => {
+  expect(() => makeTextEvaluator("hello ${value")).toThrow();
 });
