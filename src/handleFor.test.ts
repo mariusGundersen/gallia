@@ -112,4 +112,33 @@ describe("for", () => {
 
     expect(parent.innerHTML).toMatchSnapshot();
   });
+
+  test("appending items", () => {
+    const parent = createElementFromHTML(`
+      <div>
+        <template x-for="item of list">
+          Something
+        </template>
+      </div>
+    `);
+
+    const data = {
+      list: [1],
+    };
+
+    const spy = jest.fn();
+
+    handleFor(
+      parent.firstElementChild as HTMLTemplateElement,
+      data,
+      globalObservationScope,
+      spy
+    );
+
+    expect(parent.innerHTML).toMatchSnapshot();
+
+    data.list = [1, 2];
+
+    expect(parent.innerHTML).toMatchSnapshot();
+  });
 });

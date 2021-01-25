@@ -1,74 +1,67 @@
-// @ts-check
-import { isElement, isTemplateElement } from "./domUtils";
-import domWalk, { DomWalker } from "./domWalk.js";
+import { isElement, isTemplateElement } from "./domUtils.js";
 import handleAttributes from "./handleAttribute.js";
-import { handleFor } from "./handleFor";
-import { handleIf } from "./handleIf";
+import { handleFor } from "./handleFor.js";
+import { handleIf } from "./handleIf.js";
 import handleProperties from "./handleProperty.js";
 import handleText from "./handleText.js";
-import { globalObservationScope, ObservationScope } from "./observable";
+import {
+  globalObservationScope,
+  makeObservable,
+  Observable,
+  ObservableObject,
+  ObservationScope,
+} from "./observable.js";
+import { ensureAbsolute, isNewable } from "./utils.js";
 
-Promise.all(
-  Array.from(document.querySelectorAll("[x-component]")).map((e) =>
-    applyComponent(e)
-  )
-).catch((e) => console.error(e));
+export default function start(
+  element: Element = document.documentElement,
+  scope = globalObservationScope
+) {
+  handle(element, {}, scope, 1);
+}
 
-async function applyComponent(root: Element, parent?: ObservationScope) {
-  const path = root.getAttribute("x-component");
+export { Observable, makeObservable };
 
-  if (!path) return;
-
-  // load the component
-  const componentFactory = await loadComponent(path);
-
-  // child components are handled by the parent component
-  // but now we have preloaded the component
-  if (!parent && root.parentElement!.closest("[x-component]")) return;
-
-  const model = getModel(root.getAttribute("x-model"));
-
-  const component = instantiateComponent(componentFactory, model);
-
-  domWalk(root, handle(globalObservationScope));
-
-  if (
-    "$mounted" in globalObservationScope.data &&
-    typeof globalObservationScope.data.$mounted === "function"
-  ) {
-    globalObservationScope.data.$mounted();
+function handle(
+  node: Node,
+  data: ObservableObject,
+  scope: ObservationScope,
+  depth = 0
+) {
+  if (node.nodeName === "#document-fragment") {
+    for (const childNode of Array.from(node.childNodes)) {
+      handle(childNode, data, scope, depth + 1);
+    }
+  } else if (node.nodeName === "#text") {
+    handleText(node, data, scope);
+  } else if (isElement(node)) {
+    const path = node.getAttribute("x-component");
+    if (path && depth > 0) {
+      applyComponent(node, path).then((data) => {
+        handle(node, data, scope, 0);
+      });
+    } else if (isTemplateElement(node)) {
+      handleFor(node, data, scope, handle);
+      handleIf(node, data, scope, handle);
+    } else {
+      handleAttributes(node, data, scope);
+      handleProperties(node, data, scope);
+      for (const childNode of Array.from(node.childNodes)) {
+        handle(childNode, data, scope, depth + 1);
+      }
+    }
   }
 }
 
-class Walker extends DomWalker {
-  constructor(node: Node, data: unknown, depth = 0) {
-    super(node, depth);
-  }
-  visit(node: Node, depth: number): boolean | undefined {
-    if (node.nodeName === "#document-fragment") return true;
-    if (node.nodeName === "#text") {
-      handleText(node, this.data, globalObservationScope);
-      return false;
-    }
+async function applyComponent(element: Element, path: string) {
+  // load the component
+  const componentFactory = await loadComponent(path);
 
-    if (!isElement(node)) return false;
+  const model = getModel(element.getAttribute("x-model"));
 
-    if (isTemplateElement(node)) {
-      handleFor(node, globalObservationScope, handle);
-      handleIf(node, globalObservationScope, handle);
-      return false;
-    }
+  const component = instantiateComponent(componentFactory, model);
 
-    if (depth > 0 && node.hasAttribute("x-component")) {
-      applyComponent(node, globalObservationScope).catch((e) =>
-        console.error(e)
-      );
-      return false;
-    }
-
-    handleAttributes(node, data, globalObservationScope);
-    handleProperties(node, data, globalObservationScope);
-  }
+  return makeObservable(component);
 }
 
 function getModel(model: string | null) {
@@ -90,13 +83,6 @@ async function loadComponent(path: string) {
   }
 }
 
-/**
- * Ensure the path starts with /, so that we don't load anything relative to this module
- */
-function ensureAbsolute(path: string) {
-  return path.startsWith("/") ? path : "/" + path;
-}
-
 function instantiateComponent(
   component: { new (...args: any[]): any } | Function | object,
   model: any
@@ -110,10 +96,4 @@ function instantiateComponent(
   } else {
     return component;
   }
-}
-
-function isNewable(
-  component: Function | (new (...args: any[]) => any)
-): component is new (...args: any[]) => any {
-  return component.toString().startsWith("class");
 }

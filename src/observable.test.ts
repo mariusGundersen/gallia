@@ -24,6 +24,20 @@ test("Observable object", () => {
   expect(spy).toHaveBeenCalledWith(true);
 });
 
+test("Observable array", () => {
+  const data = makeObservable([1]);
+
+  const spy = jest.fn();
+
+  globalObservationScope.observeAndReact(() => data[0], spy);
+
+  expect(spy).toHaveBeenCalledWith(1);
+
+  data[0] = 5;
+
+  expect(spy).toHaveBeenCalledWith(5);
+});
+
 test("Observable object getting", () => {
   const data = makeObservable({
     visible: false,

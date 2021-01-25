@@ -1,5 +1,5 @@
-import { ObservationScope } from "./observable";
-import { makeTextEvaluator } from "./utils";
+import { ObservationScope } from "./observable.js";
+import { makeTextEvaluator } from "./utils.js";
 
 export default function handleText(
   element: Node,

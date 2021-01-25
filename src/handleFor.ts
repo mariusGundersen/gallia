@@ -1,10 +1,10 @@
-import { insertAfter } from "./domUtils";
+import { insertAfter } from "./domUtils.js";
 import {
   makeObservable,
   ObservableObject,
   ObservationScope,
-} from "./observable";
-import { makeExpressionEvaluator } from "./utils";
+} from "./observable.js";
+import { makeExpressionEvaluator } from "./utils.js";
 
 interface Source {
   key: unknown;
@@ -50,7 +50,7 @@ export function handleFor(
         const key = keyExpression({ [name]: value, $index: index });
         const oldItem = oldItems.get(key);
         if (oldItem?.index === index) {
-          console.log("item has not moved", index, value);
+          // console.log("item has not moved", index, value);
           // item has not moved
           oldList.splice(oldList.indexOf(oldItem), 1);
           endOfPreviousItem = oldItem.endOfItem;
@@ -58,7 +58,7 @@ export function handleFor(
             oldItem.value = value;
           }
         } else if (!oldItem) {
-          console.log("new item", index, value);
+          // console.log("new item", index, value);
           // this is a new item
           // insert it at the current position
           const clone = element.content.cloneNode(true);
@@ -69,28 +69,25 @@ export function handleFor(
             `end of ${index}`
           );
 
-          const source = ({
+          const source = (makeObservable({
             key,
             value,
             index,
             startOfItem,
             endOfItem,
-          } as unknown) as Source;
-          const subData = Object.create(
-            data,
-            makeObservable({
-              [name]: {
-                get() {
-                  return source.value;
-                },
+          }) as unknown) as Source;
+          const subData = Object.create(data, {
+            [name]: {
+              get() {
+                return source.value;
               },
-              $index: {
-                get() {
-                  return source.index;
-                },
+            },
+            $index: {
+              get() {
+                return source.index;
               },
-            })
-          );
+            },
+          });
           const { scope: subScope, destroy } = scope.createSubScope();
           source.destroy = destroy;
           walk?.(clone, subData, subScope);
@@ -100,7 +97,7 @@ export function handleFor(
           endOfPreviousItem = endOfItem;
           oldItems.set(key, source);
         } else {
-          console.log("item has moved from", oldItem.index, "to", index, value);
+          // console.log("item has moved from", oldItem.index, "to", index, value);
           // item has moved
           // move dom elements
           oldItem.index = index;
@@ -125,7 +122,7 @@ export function handleFor(
 
       // remove any remaining items from before
       for (const oldItem of oldList) {
-        console.log("item has been removed", oldItem.index);
+        // console.log("item has been removed", oldItem.index);
         oldItems.delete(oldItem.key);
         oldItem.destroy();
         let item = oldItem.startOfItem;

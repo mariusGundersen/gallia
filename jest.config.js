@@ -1,5 +1,7 @@
 export default {
-  preset: 'ts-jest',
-  testEnvironment: 'jsdom',
-  collectCoverage: true
+  resolver: "jest-ts-webcompat-resolver",
+  preset: "ts-jest",
+  testEnvironment: "jsdom",
+  collectCoverage: true,
+  testMatch: ["**/*.test.ts"],
 };

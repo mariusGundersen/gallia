@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+
+<div x-component="/table/index.js">
+  <button .on-click="add()">Add</button>
+  <table class="table table-hover table-striped test-data">
+    <tbody>
+      <template x-for="item of list" :key="item.id">
+        <tr @class="item.id === selected ? 'danger' : ''">
+          <td class="col-md-1">${item.id}</td>
+          <td class="col-md-4">
+            <a .on-click="select(item.id)">${item.label}</a>
+          </td>
+          <td class="col-md-1">
+            <a .on-click="remove(item.id)"
+              ><span
+                class="glyphicon glyphicon-remove"
+                aria-hidden="true"
+              ></span
+            ></a>
+          </td>
+          <td class="col-md-6"></td>
+        </tr>
+      </template>
+    </tbody>
+  </table>
+</div>
+
+<script type="module">
+  import start from "/gallia/main.js";
+
+  start();
+</script>

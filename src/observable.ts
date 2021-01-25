@@ -1,7 +1,7 @@
 export type Observer = () => void;
 type Listener = () => void;
 
-export type ObservableObject = Record<string, unknown>;
+export type ObservableObject = Record<string, unknown> | any[];
 
 type Key = string | number | symbol;
 
@@ -50,7 +50,7 @@ function clearObserver(observer: Observer) {
     while (oldProps.length > 0) {
       const [target, prop] = oldProps.pop() as TargetPropTuple;
       // remove the subscription that would notify this observer
-      subscriptions.get(target)!.get(prop)!.remove(observer);
+      subscriptions.get(target)?.get(prop)?.remove(observer);
     }
   } else {
     reverseSubscriptions.set(observer, []);
@@ -63,6 +63,9 @@ function clearObserver(observer: Observer) {
  * @param object The object we want to observe
  */
 export function makeObservable<T extends ObservableObject>(object: T): T {
+  // prevent an already observable object being made observable again
+  if (subscriptions.has(object)) return object;
+
   // All the properties on the object can be observed
   const listeners = new Map<Key, Observed>();
 

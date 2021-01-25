@@ -1,11 +1,11 @@
-import { ObservationScope } from "./observable.js";
-import { makeExpressionEvaluator } from "./utils";
+import { ObservableObject, ObservationScope } from "./observable.js";
+import { makeExpressionEvaluator } from "./utils.js";
 
 export function handleIf(
   element: HTMLTemplateElement,
-  data: object,
+  data: ObservableObject,
   scope: ObservationScope,
-  walk?: (node: Node, data: object, scope: ObservationScope) => void
+  walk?: (node: Node, data: ObservableObject, scope: ObservationScope) => void
 ) {
   const ifExpression = element.getAttribute("x-if");
   if (!ifExpression) return;

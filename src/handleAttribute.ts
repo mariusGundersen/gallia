@@ -1,5 +1,5 @@
-import { ObservationScope } from "./observable";
-import { makeExpressionEvaluator } from "./utils";
+import { ObservationScope } from "./observable.js";
+import { makeExpressionEvaluator } from "./utils.js";
 
 export default function handleAttributes(
   element: Element,

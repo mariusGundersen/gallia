@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "build": "tsc",
+    "watch": "tsc -w",
+    "server": "node server.js"
   },
   "type": "module",
   "keywords": [],
@@ -16,7 +19,9 @@
     "@typescript-eslint/parser": "^4.14.0",
     "benchmark": "^2.1.4",
     "eslint": "^7.18.0",
+    "express": "^4.17.1",
     "jest": "^26.6.3",
+    "jest-ts-webcompat-resolver": "^1.0.0",
     "ts-jest": "^26.4.4",
     "typescript": "^4.1.3"
   }
