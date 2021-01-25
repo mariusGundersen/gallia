@@ -52,8 +52,9 @@ function clearObserver(observer: Observer) {
       // remove the subscription that would notify this observer
       subscriptions.get(target)?.get(prop)?.remove(observer);
     }
+    return true;
   } else {
-    reverseSubscriptions.set(observer, []);
+    return false;
   }
 }
 
@@ -80,7 +81,7 @@ export function makeObservable<T extends ObservableObject>(object: T): T {
 
   const result = new Proxy(object, {
     get(target, prop, receiver) {
-      if (currentObserver) {
+      if (currentObserver && prop !== Symbol.unscopables) {
         getOrCreate(prop).add(currentObserver);
         reverseSubscriptions.get(currentObserver)?.push([receiver, prop]);
       }
@@ -88,7 +89,9 @@ export function makeObservable<T extends ObservableObject>(object: T): T {
     },
     set(target, prop, value, receiver) {
       const result = Reflect.set(target, prop, value, receiver);
-      getOrCreate(prop).notify();
+      if (prop !== Symbol.unscopables) {
+        getOrCreate(prop).notify();
+      }
       return result;
     },
     deleteProperty(target, prop) {
@@ -110,11 +113,18 @@ export class Observable {
 }
 
 function observe<T>(observer: Observer, getter: () => T) {
-  clearObserver(observer);
+  const exists = clearObserver(observer);
+  if (!exists) {
+    reverseSubscriptions.set(observer, []);
+  }
   currentObserver = observer;
   try {
     return getter();
   } finally {
+    // if it didn't observe anything then remove the garbage from reverseSubscriptions
+    if (reverseSubscriptions.get(observer)?.length === 0) {
+      reverseSubscriptions.delete(observer);
+    }
     // finally ensures that it works ever with exceptions
     currentObserver = undefined;
   }
@@ -123,6 +133,7 @@ function observe<T>(observer: Observer, getter: () => T) {
 function unobserve(observer: Observer) {
   // Forget everything we know about this observer
   clearObserver(observer);
+  reverseSubscriptions.delete(observer);
 }
 
 interface Destroyable {

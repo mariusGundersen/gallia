@@ -89,18 +89,15 @@ export function* handleFor(
               endOfItem,
             }) as unknown) as Source;
 
-            const subData = Object.create(data, {
-              [name]: {
-                get() {
-                  return source.value;
-                },
+            const subData = {
+              get [name]() {
+                return source.value;
               },
-              $index: {
-                get() {
-                  return source.index;
-                },
+              get $index() {
+                return source.index;
               },
-            });
+              $parent: data,
+            };
             const { scope: subScope, destroy } = scope.createSubScope();
             source.destroy = destroy;
             insertAfter(endOfPreviousItem, clone);
@@ -124,13 +121,14 @@ export function* handleFor(
             }
 
             let item = oldItem.startOfItem;
-            do {
+            while (true) {
               const nextItem = item.nextSibling;
               insertAfter(endOfPreviousItem, item);
               endOfPreviousItem = item;
               if (!nextItem) break;
+              if (item === oldItem.endOfItem) break;
               item = nextItem;
-            } while (item !== oldItem.endOfItem);
+            }
 
             oldList.splice(oldList.indexOf(oldItem), 1);
           }

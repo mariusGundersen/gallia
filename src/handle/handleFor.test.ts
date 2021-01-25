@@ -69,7 +69,7 @@ describe("for", () => {
     expect(spy.mock.calls[0][0]).toBe(
       parent.firstChild?.nextSibling?.nextSibling
     );
-    expect(spy.mock.calls[0][1].list).toBe(data.list);
+    expect(spy.mock.calls[0][1].$parent.list).toBe(data.list);
     expect(spy.mock.calls[0][1].item).toBe(1);
     expect(spy.mock.calls[0][1].$index).toBe(0);
   });
@@ -185,6 +185,35 @@ describe("for", () => {
     expect(parent.innerHTML).toMatchSnapshot();
 
     data.list.push(2);
+
+    expect(parent.innerHTML).toMatchSnapshot();
+  });
+
+  test("move item", () => {
+    const parent = createElementFromHTML(`
+      <div>
+        <template x-for="item of list" x-key="item.key">
+          Something
+        </template>
+      </div>
+    `);
+
+    const data = makeObservable({
+      list: [{ key: 1 }, { key: 2 }],
+    });
+
+    const [result] = [
+      ...handleFor(
+        parent.firstElementChild as HTMLTemplateElement,
+        emptyGenerator
+      ),
+    ];
+
+    result(parent.firstElementChild as Node, data, globalObservationScope);
+
+    expect(parent.innerHTML).toMatchSnapshot();
+
+    data.list = [{ key: 2 }, { key: 1 }];
 
     expect(parent.innerHTML).toMatchSnapshot();
   });
