@@ -1,3 +1,11 @@
+export function isTextNode(node: Node): node is Text {
+  return node.nodeName === "#text";
+}
+
+export function isDocumentFragment(node: Node): node is DocumentFragment {
+  return node.nodeName === "#document-fragment";
+}
+
 export function isElement(node: Node): node is Element {
   return node.nodeType === 1;
 }

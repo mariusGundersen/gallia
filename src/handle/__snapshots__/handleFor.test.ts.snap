@@ -12,9 +12,9 @@ exports[`for appending items 2`] = `
 "
         <!--for (item of list) {--><!--start of 0 with key 0-->
           Something
-        <!--end of 0--><!--start of 0 with key 0-->
+        <!--end of 0--><!--start of 1 with key 1-->
           Something
-        <!--end of 0--><!--}-->
+        <!--end of 1--><!--}-->
       "
 `;
 
@@ -61,5 +61,23 @@ exports[`for one item 1`] = `
         <!--for (item of list) {--><!--start of 0 with key 0-->
           Something
         <!--end of 0--><!--}-->
+      "
+`;
+
+exports[`for replacing items 1`] = `
+"
+        <!--for (item of list) {--><!--start of 0 with key 0-->
+          Something
+        <!--end of 0--><!--}-->
+      "
+`;
+
+exports[`for replacing items 2`] = `
+"
+        <!--for (item of list) {--><!--start of 0 with key 0-->
+          Something
+        <!--end of 0--><!--start of 1 with key 1-->
+          Something
+        <!--end of 1--><!--}-->
       "
 `;

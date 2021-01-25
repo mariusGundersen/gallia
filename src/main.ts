@@ -1,15 +1,8 @@
-import { isElement, isTemplateElement } from "./domUtils.js";
-import handleAttributes from "./handleAttribute.js";
-import { handleFor } from "./handleFor.js";
-import { handleIf } from "./handleIf.js";
-import handleProperties from "./handleProperty.js";
-import handleText from "./handleText.js";
+import handle from "./handle/index.js";
 import {
   globalObservationScope,
   makeObservable,
   Observable,
-  ObservableObject,
-  ObservationScope,
 } from "./observable.js";
 import { ensureAbsolute, isNewable } from "./utils.js";
 
@@ -17,43 +10,14 @@ export default function start(
   element: Element = document.documentElement,
   scope = globalObservationScope
 ) {
-  handle(element, {}, scope, 1);
+  for (const handler of handle(element, 1)) {
+    handler(element, {}, scope);
+  }
 }
 
 export { Observable, makeObservable };
 
-function handle(
-  node: Node,
-  data: ObservableObject,
-  scope: ObservationScope,
-  depth = 0
-) {
-  if (node.nodeName === "#document-fragment") {
-    for (const childNode of Array.from(node.childNodes)) {
-      handle(childNode, data, scope, depth + 1);
-    }
-  } else if (node.nodeName === "#text") {
-    handleText(node, data, scope);
-  } else if (isElement(node)) {
-    const path = node.getAttribute("x-component");
-    if (path && depth > 0) {
-      applyComponent(node, path).then((data) => {
-        handle(node, data, scope, 0);
-      });
-    } else if (isTemplateElement(node)) {
-      handleFor(node, data, scope, handle);
-      handleIf(node, data, scope, handle);
-    } else {
-      handleAttributes(node, data, scope);
-      handleProperties(node, data, scope);
-      for (const childNode of Array.from(node.childNodes)) {
-        handle(childNode, data, scope, depth + 1);
-      }
-    }
-  }
-}
-
-async function applyComponent(element: Element, path: string) {
+export async function applyComponent(element: Element, path: string) {
   // load the component
   const componentFactory = await loadComponent(path);
 
