@@ -1,4 +1,7 @@
-export type Observer = () => void;
+export interface Observer {
+  notify(): void;
+  targets: TargetPropTuple[];
+}
 type Listener = () => void;
 
 export type ObservableObject = Record<string, unknown> | any[];
@@ -8,7 +11,7 @@ type Key = string | number | symbol;
 type TargetPropTuple = [ObservableObject, Key];
 
 class Observed {
-  listeners = new Set<Observer>();
+  observers = new Set<Observer>();
   notify() {
     // Prevent infinite loop
     //
@@ -17,16 +20,16 @@ class Observed {
     // Therefore calling add(existingItem) while iterating will
     // result in an endless loop, as the exsitingItem is picked
     // up again.
-    const listeners = Array.from(this.listeners.values());
-    for (const listener of listeners) {
-      listener();
+    const observers = Array.from(this.observers.values());
+    for (let i = 0; i < observers.length; i++) {
+      observers[i].notify();
     }
   }
   add(listener: Observer) {
-    this.listeners.add(listener);
+    this.observers.add(listener);
   }
   remove(listener: Observer) {
-    this.listeners.delete(listener);
+    this.observers.delete(listener);
   }
 }
 
@@ -40,21 +43,11 @@ let currentObserver: Observer | undefined;
 // They are weakmaps so that we don't leak memory
 const subscriptions = new WeakMap<ObservableObject, Map<Key, Observed>>();
 
-const reverseSubscriptions = new WeakMap<Observer, TargetPropTuple[]>();
-
 function clearObserver(observer: Observer) {
-  // We have a weakmap that stores the list of [target, prop] pairs that this observer is observing
-  const oldProps = reverseSubscriptions.get(observer);
-
-  if (oldProps) {
-    while (oldProps.length > 0) {
-      const [target, prop] = oldProps.pop() as TargetPropTuple;
-      // remove the subscription that would notify this observer
-      subscriptions.get(target)?.get(prop)?.remove(observer);
-    }
-    return true;
-  } else {
-    return false;
+  while (observer.targets.length > 0) {
+    const [target, prop] = observer.targets.pop() as TargetPropTuple;
+    // remove the subscription that would notify this observer
+    subscriptions.get(target)?.get(prop)?.remove(observer);
   }
 }
 
@@ -83,7 +76,7 @@ export function makeObservable<T extends ObservableObject>(object: T): T {
     get(target, prop, receiver) {
       if (currentObserver && prop !== Symbol.unscopables) {
         getOrCreate(prop).add(currentObserver);
-        reverseSubscriptions.get(currentObserver)?.push([receiver, prop]);
+        currentObserver.targets.push([receiver, prop]);
       }
       return Reflect.get(target, prop, receiver);
     },
@@ -113,19 +106,12 @@ export class Observable {
 }
 
 function observe<T>(observer: Observer, getter: () => T) {
-  const exists = clearObserver(observer);
-  if (!exists) {
-    reverseSubscriptions.set(observer, []);
-  }
+  clearObserver(observer);
   currentObserver = observer;
   try {
     return getter();
   } finally {
-    // if it didn't observe anything then remove the garbage from reverseSubscriptions
-    if (reverseSubscriptions.get(observer)?.length === 0) {
-      reverseSubscriptions.delete(observer);
-    }
-    // finally ensures that it works ever with exceptions
+    // finally ensures that it works even with exceptions
     currentObserver = undefined;
   }
 }
@@ -133,7 +119,6 @@ function observe<T>(observer: Observer, getter: () => T) {
 function unobserve(observer: Observer) {
   // Forget everything we know about this observer
   clearObserver(observer);
-  reverseSubscriptions.delete(observer);
 }
 
 interface Destroyable {
@@ -162,8 +147,22 @@ export interface ObservationScope {
 function createObservationScope(context: Context): ObservationScope {
   return {
     observeAndReact<T>(getter: () => T, reaction: (value: T) => void) {
-      const observer = () => reaction(context.observe(observer, getter));
-      observer();
+      const observer: Observer = {
+        notify() {
+          reaction(context.observe(observer, getter));
+        },
+        targets: [],
+      };
+
+      observer.notify();
+
+      // if there is nothing that can notify this observer then it's not needed
+      // unobserve removes it from the list in the context
+      if (observer.targets.length === 0) {
+        context.unobserve(observer);
+        return noop;
+      }
+
       return () => context.unobserve(observer);
     },
     onDestroy(listener: Listener) {
@@ -182,6 +181,8 @@ function createObservationScope(context: Context): ObservationScope {
 const globalObservationScope = createObservationScope(rootContext);
 
 export { globalObservationScope };
+
+function noop() {}
 
 function createSubContext({
   addDestroyListener,
@@ -209,7 +210,7 @@ function createSubContext({
 
   addDestroyListener(destroy);
 
-  const subContext = {
+  const subContext: Context = {
     observe<T>(observer: Observer, effect: () => T) {
       if (!observers) throw new Error("Attempted to observe a destroyed scope");
 
