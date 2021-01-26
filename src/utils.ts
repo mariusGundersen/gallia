@@ -3,7 +3,7 @@ export function makeExpressionEvaluator(expression: string) {
   return getOrAdd(
     expressionEvaluators,
     expression,
-    (expression) => new Function("$data", `with($data){return ${expression}}`)
+    (expression) => new Function("$data", `with($data){return ${expression};}`)
   );
 }
 
@@ -23,7 +23,7 @@ export function makeEventHandler(expression: string) {
     eventHandlers,
     expression,
     (expression) =>
-      new Function("$data", "$e", `with($data){return ${expression};}`)
+      new Function("$data", `return $e => {with($data){${expression};}}`)
   );
 }
 

@@ -13,9 +13,13 @@ export default function* handleProperties(element: Element) {
 export function* handleProperty(attr: Attr) {
   const property = attr.name.substr(1);
   if (property.startsWith("on-")) {
+    const type = property.substr(3);
     const eventHandler = makeEventHandler(attr.value);
-    yield (node: Node, data: ObservableObject, scope: ObservationScope) =>
-      node.addEventListener(property.substr(3), (e) => eventHandler(data, e));
+    yield (node: Node, data: ObservableObject, scope: ObservationScope) => {
+      const handler = eventHandler(data);
+      node.addEventListener(type, handler);
+      scope.onDestroy(() => node.removeEventListener(type, handler));
+    };
   } else {
     const expression = makeExpressionEvaluator(attr.value);
     yield (node: Node, data: ObservableObject, scope: ObservationScope) =>
