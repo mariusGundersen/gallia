@@ -27,6 +27,10 @@ export function makeEventHandler(expression: string) {
   );
 }
 
+export function makeKeyEvaluator(itemName: string, expression: string) {
+  return new Function(itemName, "$index", `return ${expression};`);
+}
+
 export function isNewable(
   component: Function | (new (...args: any[]) => any)
 ): component is new (...args: any[]) => any {

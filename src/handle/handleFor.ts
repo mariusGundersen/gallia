@@ -4,7 +4,7 @@ import {
   ObservableObject,
   ObservationScope,
 } from "../observable.js";
-import { makeExpressionEvaluator } from "../utils.js";
+import { makeExpressionEvaluator, makeKeyEvaluator } from "../utils.js";
 import { HandleGenerator, Handler } from "./index.js";
 
 interface Source {
@@ -13,6 +13,10 @@ interface Source {
   value: unknown;
   startOfItem: Node;
   endOfItem: Node;
+  observable: {
+    value: unknown;
+    index: number;
+  };
   destroy: () => void;
 }
 
@@ -28,7 +32,7 @@ export function* handleFor(
   if (!isFor) return;
 
   const expression = makeExpressionEvaluator(collection);
-  const keyExpression = getKeyExpression(element);
+  const getKey = getKeyEvaluator(name, element);
 
   const documentFragment = element.content;
   documentFragment.prepend(
@@ -60,7 +64,7 @@ export function* handleFor(
         let endOfPreviousItem = before;
         for (let index = 0; index < items.length; index++) {
           const value = items[index];
-          const key = keyExpression({ [name]: value, $index: index });
+          const key = getKey(value, index);
           const oldItem = oldItems.get(key);
           if (!oldItem) {
             // this is a new item
@@ -70,22 +74,28 @@ export function* handleFor(
             const endOfItem = clone.lastChild as Node;
             endOfItem.textContent = `end of ${index}`;
 
-            const source = (makeObservable({
+            const source = {
               key,
               value,
               index,
               startOfItem,
               endOfItem,
-            }) as unknown) as Source;
+              observable: makeObservable({
+                value,
+                index,
+              }),
+            } as Source;
 
             const subData = {
               get [name]() {
-                return source.value;
+                return source.observable.value;
               },
               get $index() {
-                return source.index;
+                return source.observable.index;
               },
-              $parent: data,
+              get $parent() {
+                return data;
+              },
             };
             const { scope: subScope, destroy } = scope.createSubScope();
             source.destroy = destroy;
@@ -109,8 +119,10 @@ export function* handleFor(
           } else if (oldItem.index !== index) {
             // item has moved
             oldItem.index = index;
+            oldItem.observable.index = index;
             if (oldItem.value !== value) {
               oldItem.value = value;
+              oldItem.observable.value = value;
             }
 
             moveItemAfter(
@@ -127,6 +139,7 @@ export function* handleFor(
             endOfPreviousItem = oldItem.endOfItem;
             if (oldItem.value !== value) {
               oldItem.value = value;
+              oldItem.observable.value = value;
             }
           }
         }
@@ -142,12 +155,14 @@ export function* handleFor(
   };
 }
 
-const indexKeyExpression = ({ $index }: { $index: number }) => $index;
+const indexKeyExpression = (_: unknown, $index: number) => $index;
 
-function getKeyExpression(elm: HTMLTemplateElement) {
-  const key = elm.getAttribute("x-key");
+function getKeyEvaluator(itemName: string, elm: HTMLTemplateElement) {
+  const keyExpression = elm.getAttribute("x-key");
 
-  return key ? makeExpressionEvaluator(key) : indexKeyExpression;
+  return keyExpression
+    ? makeKeyEvaluator(itemName, keyExpression)
+    : indexKeyExpression;
 }
 
 function moveItemAfter(
@@ -155,6 +170,7 @@ function moveItemAfter(
   endOfItem: Node,
   endOfPreviousItem: Node
 ) {
+  if (endOfPreviousItem.nextSibling === startOfItem) return;
   let item = startOfItem;
   while (true) {
     const nextItem = item.nextSibling;
