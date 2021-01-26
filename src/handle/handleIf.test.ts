@@ -6,7 +6,6 @@ import {
 } from "../observable";
 import { createElementFromHTML } from "../testUtils";
 import { handleIf } from "./handleIf";
-import { HandleGenerator } from "./index";
 
 describe("if", () => {
   test.each([true, false])("if %s", (visible) => {
@@ -25,7 +24,7 @@ describe("if", () => {
     const [result] = [
       ...handleIf(
         parent.firstElementChild as HTMLTemplateElement,
-        emptyGenerator
+        createEmptyWalker
       ),
     ];
 
@@ -48,8 +47,8 @@ describe("if", () => {
     });
 
     const spy = jest.fn();
-    const handlerSpy = jest.fn(function* () {
-      yield (node: Node, data: ObservableObject, scope: ObservationScope) =>
+    const handlerSpy = jest.fn(function () {
+      return (node: Node, data: ObservableObject, scope: ObservationScope) =>
         spy(node.childNodes[0], data, scope);
     });
 
@@ -84,7 +83,7 @@ describe("if", () => {
     const [result] = [
       ...handleIf(
         parent.firstElementChild as HTMLTemplateElement,
-        emptyGenerator
+        createEmptyWalker
       ),
     ];
 
@@ -109,8 +108,8 @@ describe("if", () => {
     });
 
     const spy = jest.fn();
-    const handlerSpy = jest.fn(function* () {
-      yield spy;
+    const handlerSpy = jest.fn(function () {
+      return spy;
     });
 
     const [result] = [
@@ -141,12 +140,9 @@ describe("if", () => {
     const spy = jest.fn();
 
     const [result] = [
-      ...handleIf(
-        parent.firstElementChild as HTMLTemplateElement,
-        function* () {
-          yield (_node, _data, scope) => scope.onDestroy(spy);
-        }
-      ),
+      ...handleIf(parent.firstElementChild as HTMLTemplateElement, function () {
+        return (_node, _data, scope) => scope.onDestroy(spy);
+      }),
     ];
 
     result(parent.firstElementChild as Node, data, globalObservationScope);
@@ -157,4 +153,6 @@ describe("if", () => {
   });
 });
 
-function* emptyGenerator(node: Node, depth: number): HandleGenerator {}
+function createEmptyWalker(node: Node) {
+  return () => {};
+}

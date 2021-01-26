@@ -5,7 +5,7 @@ import {
   ObservationScope,
 } from "../observable.js";
 import { makeExpressionEvaluator, makeKeyEvaluator } from "../utils.js";
-import { HandleGenerator, Handler } from "./index.js";
+import { CreateWalker, HandleGenerator } from "./index.js";
 
 interface Source {
   key: unknown;
@@ -22,7 +22,7 @@ interface Source {
 
 export function* handleFor(
   element: HTMLTemplateElement,
-  walk: Handler
+  createWalker: CreateWalker
 ): HandleGenerator {
   const forExpression = element.getAttribute("x-for");
   if (!forExpression) return;
@@ -42,7 +42,7 @@ export function* handleFor(
     documentFragment.ownerDocument.createComment(`end of item`)
   );
 
-  const handlers = [...walk(documentFragment, 0)];
+  const walk = createWalker(documentFragment);
 
   yield (node: Node, data: ObservableObject, scope: ObservationScope) => {
     const element = node as HTMLTemplateElement;
@@ -62,7 +62,7 @@ export function* handleFor(
           (a, b) => a.index - b.index
         );
         let endOfPreviousItem = before;
-        for (let index = 0; index < items.length; index++) {
+        for (let index = 0, length = items.length; index < length; index++) {
           const value = items[index];
           const key = getKey(value, index);
           const oldItem = oldItems.get(key);
@@ -110,9 +110,7 @@ export function* handleFor(
 
             insertAfter(endOfPreviousItem, clone);
 
-            handlers.forEach((handler) =>
-              handler(fragmentAsNode, subData, subScope)
-            );
+            walk(fragmentAsNode, subData, subScope);
 
             endOfPreviousItem = endOfItem;
             oldItems.set(key, source);

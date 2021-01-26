@@ -6,7 +6,6 @@ import {
 } from "../observable";
 import { createElementFromHTML } from "../testUtils";
 import { handleFor } from "./handleFor";
-import { HandleGenerator } from "./index";
 
 describe("for", () => {
   test("empty list", () => {
@@ -23,8 +22,8 @@ describe("for", () => {
     };
 
     const spy = jest.fn();
-    const handlerSpy = jest.fn(function* () {
-      yield spy;
+    const handlerSpy = jest.fn(function () {
+      return spy;
     });
 
     const [result] = [
@@ -52,8 +51,8 @@ describe("for", () => {
     };
 
     const spy = jest.fn();
-    const handlerSpy = jest.fn(function* () {
-      yield (node: Node, data: ObservableObject, scope: ObservationScope) =>
+    const handlerSpy = jest.fn(function () {
+      return (node: Node, data: ObservableObject, scope: ObservationScope) =>
         spy(node.childNodes[0], data, scope);
     });
 
@@ -88,8 +87,8 @@ describe("for", () => {
     };
 
     const spy = jest.fn();
-    const handlerSpy = jest.fn(function* () {
-      yield spy;
+    const handlerSpy = jest.fn(function () {
+      return spy;
     });
 
     const [result] = [
@@ -123,7 +122,7 @@ describe("for", () => {
     const [result] = [
       ...handleFor(
         parent.firstElementChild as HTMLTemplateElement,
-        emptyGenerator
+        createEmptyWalker
       ),
     ];
 
@@ -147,7 +146,7 @@ describe("for", () => {
     const [result] = [
       ...handleFor(
         parent.firstElementChild as HTMLTemplateElement,
-        emptyGenerator
+        createEmptyWalker
       ),
     ];
 
@@ -176,7 +175,7 @@ describe("for", () => {
     const [result] = [
       ...handleFor(
         parent.firstElementChild as HTMLTemplateElement,
-        emptyGenerator
+        createEmptyWalker
       ),
     ];
 
@@ -205,7 +204,7 @@ describe("for", () => {
     const [result] = [
       ...handleFor(
         parent.firstElementChild as HTMLTemplateElement,
-        emptyGenerator
+        createEmptyWalker
       ),
     ];
 
@@ -234,7 +233,7 @@ describe("for", () => {
     const [result] = [
       ...handleFor(
         parent.firstElementChild as HTMLTemplateElement,
-        emptyGenerator
+        createEmptyWalker
       ),
     ];
 
@@ -263,7 +262,7 @@ describe("for", () => {
     const [result] = [
       ...handleFor(
         parent.firstElementChild as HTMLTemplateElement,
-        emptyGenerator
+        createEmptyWalker
       ),
     ];
 
@@ -277,4 +276,6 @@ describe("for", () => {
   });
 });
 
-function* emptyGenerator(node: Node, depth: number): HandleGenerator {}
+function createEmptyWalker(node: Node) {
+  return () => {};
+}

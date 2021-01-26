@@ -1,4 +1,4 @@
-import handle from "./handle/index.js";
+import { createWalker } from "./handle/index.js";
 import {
   globalObservationScope,
   makeObservable,
@@ -10,9 +10,7 @@ export default function start(
   element: Element = document.documentElement,
   scope = globalObservationScope
 ) {
-  for (const handler of handle(element, 1)) {
-    handler(element, {}, scope);
-  }
+  createWalker(element, 1)(element, {}, scope);
 }
 
 export { Observable, makeObservable };

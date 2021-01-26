@@ -30,23 +30,31 @@ export default function* handle(node: Node, depth = 0): HandleGenerator {
   } else if (isElement(node)) {
     const path = node.getAttribute("x-component");
     if (path && depth > 0) {
-      const handlers = [...handle(node, 0)];
+      const walk = createWalker(node);
       yield (node, data, scope) =>
         applyComponent(node as Element, path).then((subData) => {
           const { scope: subScope } = scope.createSubScope();
-          for (const handler of handlers) {
-            handler(node, subData, subScope);
-          }
+          walk(node, subData, subScope);
         });
     } else if (isTemplateElement(node)) {
-      yield* handleFor(node, handle);
-      yield* handleIf(node, handle);
+      yield* handleFor(node, createWalker);
+      yield* handleIf(node, createWalker);
     } else {
       yield* handleAttributes(node);
       yield* handleProperties(node);
       yield* recurse(node, depth + 1);
     }
   }
+}
+
+export type CreateWalker = typeof createWalker;
+export function createWalker(node: Node, depth = 0) {
+  const handlers = Array.from(handle(node, depth));
+  return (node: Node, data: ObservableObject, scope: ObservationScope) => {
+    for (let i = 0, l = handlers.length; i < l; i++) {
+      handlers[i](node, data, scope);
+    }
+  };
 }
 
 function* recurse(node: Node, depth: number) {

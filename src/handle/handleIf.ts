@@ -1,10 +1,10 @@
 import { ObservableObject, ObservationScope } from "../observable.js";
 import { makeExpressionEvaluator } from "../utils.js";
-import { HandleGenerator, Handler } from "./index.js";
+import { CreateWalker, HandleGenerator } from "./index.js";
 
 export function* handleIf(
   element: HTMLTemplateElement,
-  walk: Handler
+  createWalker: CreateWalker
 ): HandleGenerator {
   const ifExpression = element.getAttribute("x-if");
   if (!ifExpression) return;
@@ -12,7 +12,7 @@ export function* handleIf(
   const ifEvaluator = makeExpressionEvaluator(ifExpression);
 
   const documentFragment = element.content;
-  const handlers = [...walk(documentFragment, 0)];
+  const walk = createWalker(documentFragment);
 
   yield (node: Node, data: ObservableObject, scope: ObservationScope) => {
     const element = node as HTMLTemplateElement;
@@ -29,13 +29,20 @@ export function* handleIf(
       (show) => {
         if (show && !destroyScope) {
           const clone = documentFragment.cloneNode(true);
-          const childNodes = Array.from(clone.childNodes);
           const { scope: subScope, destroy } = scope.createSubScope();
           destroyScope = destroy;
+
+          // remember the childNodes so that we can send them to the handlers
+          const fragmentAsNode: Node = {
+            // we pretend this is a full node, but it isn't.
+            // Thats fine, as it will be passed to a function that only
+            // deals with childNodes
+            childNodes: Array.from(clone.childNodes),
+          } as any;
+
           parent!.insertBefore(clone, after);
-          for (const handler of handlers) {
-            handler(({ childNodes } as unknown) as Node, data, subScope);
-          }
+
+          walk(fragmentAsNode, data, subScope);
         } else if (!show && destroyScope) {
           while (before.nextSibling !== after && before.nextSibling) {
             parent!.removeChild(before.nextSibling);
