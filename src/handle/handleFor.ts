@@ -62,20 +62,9 @@ export function* handleFor(
           const value = items[index];
           const key = keyExpression({ [name]: value, $index: index });
           const oldItem = oldItems.get(key);
-          if (oldItem?.index === index) {
-            // console.log("item has not moved", index, value);
-            // item has not moved
-            oldList.splice(oldList.indexOf(oldItem), 1);
-            endOfPreviousItem = oldItem.endOfItem;
-            if (oldItem.value !== value) {
-              oldItem.value = value;
-            }
-          } else if (!oldItem) {
-            // console.log("new item", index, value);
+          if (!oldItem) {
             // this is a new item
-            // insert it at the current position
             const clone = documentFragment.cloneNode(true);
-            const cloneChildren = Array.from(clone.childNodes);
             const startOfItem = clone.firstChild as Node;
             startOfItem.textContent = `start of ${index} with key ${key}`;
             const endOfItem = clone.lastChild as Node;
@@ -100,52 +89,53 @@ export function* handleFor(
             };
             const { scope: subScope, destroy } = scope.createSubScope();
             source.destroy = destroy;
+
+            // remember the childNodes so that we can send them to the handlers
+            const fragmentAsNode: Node = {
+              // we pretend this is a full node, but it isn't.
+              // Thats fine, as it will be passed to a function that only
+              // deals with childNodes
+              childNodes: Array.from(clone.childNodes),
+            } as any;
+
             insertAfter(endOfPreviousItem, clone);
 
-            for (const handler of handlers) {
-              handler(
-                ({ childNodes: cloneChildren } as unknown) as Node,
-                subData,
-                subScope
-              );
-            }
+            handlers.forEach((handler) =>
+              handler(fragmentAsNode, subData, subScope)
+            );
+
             endOfPreviousItem = endOfItem;
             oldItems.set(key, source);
-          } else {
-            // console.log("item has moved from", oldItem.index, "to", index, value);
+          } else if (oldItem.index !== index) {
             // item has moved
-            // move dom elements
             oldItem.index = index;
             if (oldItem.value !== value) {
               oldItem.value = value;
             }
 
-            let item = oldItem.startOfItem;
-            while (true) {
-              const nextItem = item.nextSibling;
-              insertAfter(endOfPreviousItem, item);
-              endOfPreviousItem = item;
-              if (!nextItem) break;
-              if (item === oldItem.endOfItem) break;
-              item = nextItem;
-            }
+            moveItemAfter(
+              oldItem.startOfItem,
+              oldItem.endOfItem,
+              endOfPreviousItem
+            );
 
             oldList.splice(oldList.indexOf(oldItem), 1);
+            endOfPreviousItem = oldItem.endOfItem;
+          } else {
+            // item has not moved
+            oldList.splice(oldList.indexOf(oldItem), 1);
+            endOfPreviousItem = oldItem.endOfItem;
+            if (oldItem.value !== value) {
+              oldItem.value = value;
+            }
           }
         }
 
         // remove any remaining items from before
         for (const oldItem of oldList) {
-          // console.log("item has been removed", oldItem.index);
           oldItems.delete(oldItem.key);
           oldItem.destroy();
-          let item = oldItem.startOfItem;
-          do {
-            const nextItem = item.nextSibling;
-            item.parentNode!.removeChild(item);
-            if (!nextItem) break;
-            item = nextItem;
-          } while (item !== oldItem.endOfItem);
+          removeItem(oldItem.startOfItem, oldItem.endOfItem);
         }
       }
     );
@@ -158,4 +148,31 @@ function getKeyExpression(elm: HTMLTemplateElement) {
   const key = elm.getAttribute("x-key");
 
   return key ? makeExpressionEvaluator(key) : indexKeyExpression;
+}
+
+function moveItemAfter(
+  startOfItem: Node,
+  endOfItem: Node,
+  endOfPreviousItem: Node
+) {
+  let item = startOfItem;
+  while (true) {
+    const nextItem = item.nextSibling;
+    insertAfter(endOfPreviousItem, item);
+    endOfPreviousItem = item;
+    if (item === endOfItem) break;
+    if (!nextItem) break;
+    item = nextItem;
+  }
+}
+
+function removeItem(startOfItem: Node, endOfItem: Node) {
+  let item = startOfItem;
+  while (true) {
+    const nextItem = item.nextSibling;
+    item.parentNode!.removeChild(item);
+    if (item === endOfItem) break;
+    if (!nextItem) break;
+    item = nextItem;
+  }
 }

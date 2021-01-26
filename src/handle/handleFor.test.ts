@@ -217,6 +217,35 @@ describe("for", () => {
 
     expect(parent.innerHTML).toMatchSnapshot();
   });
+
+  test("remove item at end", () => {
+    const parent = createElementFromHTML(`
+      <div>
+        <template x-for="item of list" x-key="item.key">
+          Something
+        </template>
+      </div>
+    `);
+
+    const data = makeObservable({
+      list: [{ key: 1 }, { key: 2 }, { key: 3 }],
+    });
+
+    const [result] = [
+      ...handleFor(
+        parent.firstElementChild as HTMLTemplateElement,
+        emptyGenerator
+      ),
+    ];
+
+    result(parent.firstElementChild as Node, data, globalObservationScope);
+
+    expect(parent.innerHTML).toMatchSnapshot();
+
+    data.list = [{ key: 1 }, { key: 2 }];
+
+    expect(parent.innerHTML).toMatchSnapshot();
+  });
 });
 
 function* emptyGenerator(node: Node, depth: number): HandleGenerator {}
