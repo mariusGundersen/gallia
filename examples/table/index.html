@@ -1,7 +1,12 @@
 <!DOCTYPE html>
 
 <div x-component="/table/index.js">
-  <button .on-click="add()">Add</button>
+  <button .on-click="create()">create</button>
+  <button .on-click="clear()">clear</button>
+  <button .on-click="prepend()">prepend</button>
+  <button .on-click="append()">append</button>
+  <button .on-click="removeFirst()">removeFirst</button>
+  <button .on-click="removeLast()">removeLast</button>
   <table class="table table-hover table-striped test-data">
     <tbody>
       <template x-for="item of list" :key="item.id">

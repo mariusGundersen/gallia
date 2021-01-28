@@ -78,7 +78,31 @@ export default class index extends Observable {
   list = [];
   selected = -1;
 
-  add() {
-    this.list = this.list.concat(buildData(1000));
+  create() {
+    this.list = buildData(1000);
+  }
+
+  clear() {
+    this.list = [];
+  }
+
+  append() {
+    window.performance.mark("append");
+    this.list = this.list.concat(buildData(1));
+  }
+
+  prepend() {
+    window.performance.mark("prepend");
+    this.list = buildData(1).concat(this.list);
+  }
+
+  removeFirst() {
+    window.performance.mark("removeFirst");
+    this.list = this.list.filter((_, i) => i > 0);
+  }
+
+  removeLast() {
+    window.performance.mark("removeLast");
+    this.list = this.list.filter((_, i, c) => i < c.length - 1);
   }
 }

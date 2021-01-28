@@ -68,6 +68,7 @@ describe("for", () => {
     expect(spy.mock.calls[0][0]).toBe(
       parent.firstChild?.nextSibling?.nextSibling
     );
+    expect(spy.mock.calls[0][1].list).toBe(data.list);
     expect(spy.mock.calls[0][1].$parent.list).toBe(data.list);
     expect(spy.mock.calls[0][1].item).toBe(1);
     expect(spy.mock.calls[0][1].$index).toBe(0);

@@ -58,7 +58,7 @@ export function* handleFor(
     scope.observeAndReact(
       () => Array.from(expression(data)),
       (items) => {
-        const oldList = [...oldItems.values()].sort(
+        const oldList: (Source | undefined)[] = [...oldItems.values()].sort(
           (a, b) => a.index - b.index
         );
         let endOfPreviousItem = before;
@@ -74,48 +74,35 @@ export function* handleFor(
             const endOfItem = clone.lastChild as Node;
             endOfItem.textContent = `end of ${index}`;
 
-            const source = {
+            const { scope: subScope, destroy } = scope.createSubScope();
+
+            const source: Source = {
               key,
               value,
               index,
               startOfItem,
               endOfItem,
+              destroy,
               observable: makeObservable({
                 value,
                 index,
               }),
-            } as Source;
-
-            const subData = {
-              get [name]() {
-                return source.observable.value;
-              },
-              get $index() {
-                return source.observable.index;
-              },
-              get $parent() {
-                return data;
-              },
             };
-            const { scope: subScope, destroy } = scope.createSubScope();
-            source.destroy = destroy;
+
+            const subData = createSubData(data, name, source);
 
             // remember the childNodes so that we can send them to the handlers
-            const fragmentAsNode: Node = {
-              // we pretend this is a full node, but it isn't.
-              // Thats fine, as it will be passed to a function that only
-              // deals with childNodes
-              childNodes: Array.from(clone.childNodes),
-            } as any;
+            const fragment = rememberTheChildren(clone);
 
             insertAfter(endOfPreviousItem, clone);
 
-            walk(fragmentAsNode, subData, subScope);
+            walk(fragment, subData, subScope);
 
             endOfPreviousItem = endOfItem;
             oldItems.set(key, source);
           } else if (oldItem.index !== index) {
             // item has moved
+            const oldIndex = oldItem.index;
             oldItem.index = index;
             oldItem.observable.index = index;
             if (oldItem.value !== value) {
@@ -129,11 +116,11 @@ export function* handleFor(
               endOfPreviousItem
             );
 
-            oldList.splice(oldList.indexOf(oldItem), 1);
+            oldList[oldIndex] = undefined;
             endOfPreviousItem = oldItem.endOfItem;
           } else {
             // item has not moved
-            oldList.splice(oldList.indexOf(oldItem), 1);
+            oldList[oldItem.index] = undefined;
             endOfPreviousItem = oldItem.endOfItem;
             if (oldItem.value !== value) {
               oldItem.value = value;
@@ -143,7 +130,9 @@ export function* handleFor(
         }
 
         // remove any remaining items from before
-        for (const oldItem of oldList) {
+        for (let i = 0, l = oldList.length; i < l; i++) {
+          const oldItem = oldList[i];
+          if (!oldItem) continue;
           oldItems.delete(oldItem.key);
           oldItem.destroy();
           removeItem(oldItem.startOfItem, oldItem.endOfItem);
@@ -154,6 +143,32 @@ export function* handleFor(
 }
 
 const indexKeyExpression = (_: unknown, $index: number) => $index;
+
+function createSubData(data: ObservableObject, name: string, source: Source) {
+  return Object.create(data, {
+    [name]: {
+      get() {
+        return source.observable.value;
+      },
+    },
+    $index: {
+      get() {
+        return source.observable.index;
+      },
+    },
+    $parent: {
+      get() {
+        return data;
+      },
+    },
+  });
+}
+
+function rememberTheChildren(clone: Node): Node {
+  return {
+    childNodes: Array.from(clone.childNodes),
+  } as any;
+}
 
 function getKeyEvaluator(itemName: string, elm: HTMLTemplateElement) {
   const keyExpression = elm.getAttribute("x-key");

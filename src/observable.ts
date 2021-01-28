@@ -51,6 +51,8 @@ function clearObserver(observer: Observer) {
   }
 }
 
+const observables = new WeakMap<ObservableObject, true>();
+
 /**
  * Take an object and return an observable version of the object
  *
@@ -58,7 +60,7 @@ function clearObserver(observer: Observer) {
  */
 export function makeObservable<T extends ObservableObject>(object: T): T {
   // prevent an already observable object being made observable again
-  if (subscriptions.has(object)) return object;
+  if (observables.has(object)) return object;
 
   // All the properties on the object can be observed
   const listeners = new Map<Key, Observed>();
@@ -76,7 +78,7 @@ export function makeObservable<T extends ObservableObject>(object: T): T {
     get(target, prop, receiver) {
       if (currentObserver && prop !== Symbol.unscopables) {
         getOrCreate(prop).add(currentObserver);
-        currentObserver.targets.push([receiver, prop]);
+        currentObserver.targets.push([target, prop]);
       }
       return Reflect.get(target, prop, receiver);
     },
@@ -92,7 +94,8 @@ export function makeObservable<T extends ObservableObject>(object: T): T {
       return Reflect.deleteProperty(target, prop);
     },
   });
-  subscriptions.set(result, listeners);
+  subscriptions.set(object, listeners);
+  observables.set(result, true);
   return result;
 }
 
