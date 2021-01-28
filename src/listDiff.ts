@@ -15,57 +15,56 @@ export default function listDiff<T extends Keyed>(
   callbacks: Callbacks<T>
 ) {
   let a = 0;
-  let b = 0;
   const la = listA.length;
-  const lb = listB.length;
 
-  const mapA = new Map(listA.map(({ key }, index) => [key, index]));
-  const mapB = new Map(listB.map(({ key }, index) => [key, index]));
+  const mapA = new Map(listA.map((item) => [item.key, item]));
+  const mapB = new Map(listB.map((item) => [item.key, item]));
 
-  for (; a < la && b < lb; ) {
-    const itemA = listA[a];
-    const itemB = listB[b];
+  const valuesB = mapB.values();
 
-    if (itemA.key === itemB.key) {
-      callbacks.noop();
-      a++;
-      b++;
-    } else {
-      const indexOfItemAInListB = mapB.get(itemA.key);
-      const indexOfItemBInListA = mapA.get(itemB.key);
+  // loop through all new items
+  loopB: for (const itemB of valuesB) {
+    // we might need to move through only the old items
+    loopA: while (true) {
+      // if there are still items in the old list, we should compare them
+      if (a < la) {
+        const itemA = listA[a];
 
-      if (
-        indexOfItemAInListB === undefined &&
-        indexOfItemBInListA === undefined
-      ) {
-        callbacks.move(itemB);
-        a++;
-        b++;
-      } else if (
-        indexOfItemAInListB !== undefined &&
-        indexOfItemBInListA !== undefined
-      ) {
-        callbacks.move(itemB);
-        a++;
-        b++;
-      } else {
-        if (indexOfItemAInListB === undefined) {
-          callbacks.remove(itemA);
+        if (itemA.key === itemB.key) {
+          // the item is in the correct locations
+          // the index might have changed though
+          // todo: handle index changed
+          callbacks.noop();
           a++;
+          continue loopB;
+        } else {
+          // the item is not in the correct location
+          const itemAExistsInListB = mapB.has(itemA.key);
+          const itemBExistsInListA = mapA.has(itemB.key);
+
+          if (itemAExistsInListB == itemBExistsInListA) {
+            callbacks.move(itemB);
+            a++;
+            continue loopB;
+          } else if (!itemAExistsInListB) {
+            callbacks.remove(itemA);
+            a++;
+            continue loopA;
+          } else if (!itemBExistsInListA) {
+            callbacks.insert(itemB);
+            continue loopB;
+          }
         }
-        if (indexOfItemBInListA === undefined) {
-          callbacks.insert(itemB);
-          b++;
-        }
+      } else {
+        // if there are no more items in the old list
+        // then we just insert the new items
+        callbacks.insert(itemB);
+        continue loopB;
       }
     }
   }
 
   for (; a < la; a++) {
     callbacks.remove(listA[a]);
-  }
-
-  for (; b < lb; b++) {
-    callbacks.insert(listB[b]);
   }
 }
