@@ -3,9 +3,10 @@ type Change = "INSERT" | "UPDATE" | "DELETE";
 type Keyed = { key: string };
 
 interface Callbacks<T extends Keyed> {
-  insert(index: number, item: T): void;
-  move(index: number, item: T): void;
-  remove(index: number, item: T): void;
+  insert(item: T): void;
+  move(item: T): void;
+  noop(): void;
+  remove(item: T): void;
 }
 
 export default function listDiff<T extends Keyed>(
@@ -26,6 +27,7 @@ export default function listDiff<T extends Keyed>(
     const itemB = listB[b];
 
     if (itemA.key === itemB.key) {
+      callbacks.noop();
       a++;
       b++;
     } else {
@@ -36,23 +38,23 @@ export default function listDiff<T extends Keyed>(
         indexOfItemAInListB === undefined &&
         indexOfItemBInListA === undefined
       ) {
-        callbacks.move(a, itemB);
+        callbacks.move(itemB);
         a++;
         b++;
       } else if (
         indexOfItemAInListB !== undefined &&
         indexOfItemBInListA !== undefined
       ) {
-        callbacks.move(a, itemB);
+        callbacks.move(itemB);
         a++;
         b++;
       } else {
         if (indexOfItemAInListB === undefined) {
-          callbacks.remove(a, itemA);
+          callbacks.remove(itemA);
           a++;
         }
         if (indexOfItemBInListA === undefined) {
-          callbacks.insert(b, itemB);
+          callbacks.insert(itemB);
           b++;
         }
       }
@@ -60,10 +62,10 @@ export default function listDiff<T extends Keyed>(
   }
 
   for (; a < la; a++) {
-    callbacks.remove(a, listA[a]);
+    callbacks.remove(listA[a]);
   }
 
   for (; b < lb; b++) {
-    callbacks.insert(b, listB[b]);
+    callbacks.insert(listB[b]);
   }
 }

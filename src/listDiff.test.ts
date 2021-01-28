@@ -2,14 +2,16 @@ import listDiff from "./listDiff";
 
 function simpleListDiff(a: string[], b: string[]) {
   const changes: string[] = [];
+  let index = 0;
 
   listDiff(
     a.map((key) => ({ key })),
     b.map((key) => ({ key })),
     {
-      insert: (index, { key }) => changes.push(`INSERT: ${index} = ${key}`),
-      move: (index, { key }) => changes.push(`MOVE: ${index} = ${key}`),
-      remove: (index, { key }) => changes.push(`REMOVE: ${index} = ${key}`),
+      noop: () => index++,
+      insert: ({ key }) => changes.push(`INSERT: ${index++} = ${key}`),
+      move: ({ key }) => changes.push(`MOVE: ${index++} = ${key}`),
+      remove: ({ key }) => changes.push(`REMOVE: ${index++} = ${key}`),
     }
   );
 
