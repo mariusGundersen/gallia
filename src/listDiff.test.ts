@@ -2,29 +2,47 @@ import listDiff from "./listDiff";
 
 function simpleListDiff(a: string[], b: string[]) {
   const changes: string[] = [];
+  const result = [...a];
   let index = 0;
 
   listDiff(
     a.map((key) => ({ key })),
     b.map((key) => ({ key })),
     {
-      noop: () => index++,
-      insert: ({ key }) => changes.push(`INSERT: ${index++} = ${key}`),
-      move: ({ key }) => changes.push(`MOVE: ${index++} = ${key}`),
-      remove: ({ key }) => changes.push(`REMOVE: ${index} = ${key}`),
+      noop({ key }) {
+        result[index] = key;
+        index++;
+      },
+      insert({ key }) {
+        changes.push(`INSERT: ${index} = ${key}`);
+        result.splice(index, 0, key);
+        index++;
+      },
+      move({ key }) {
+        changes.push(`MOVE: ${index} = ${key}`);
+        result.splice(result.indexOf(key), 1);
+        result.splice(index, 0, key);
+        index++;
+      },
+      remove({ key }) {
+        changes.push(`REMOVE: ${index} = ${key}`);
+        result.splice(index, 1);
+      },
     }
   );
+
+  expect(result).toEqual(b);
 
   return changes;
 }
 
 test("same lists", () => {
-  const result = simpleListDiff(
+  const changes = simpleListDiff(
     ["A", "B", "C", "D", "E", "F", "G"],
     ["A", "B", "C", "D", "E", "F", "G"]
   );
 
-  expect(result).toEqual([]);
+  expect(changes).toEqual([]);
 });
 
 test("appended", () => {
