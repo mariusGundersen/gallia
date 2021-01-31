@@ -6,7 +6,11 @@ function simpleListDiff(a: string[], b: string[]) {
   listDiff(
     a.map((key) => ({ key })),
     b.map((key) => ({ key })),
-    (change, index, { key }) => changes.push(`${change}: ${index} = ${key}`)
+    {
+      insert: (index, { key }) => changes.push(`INSERT: ${index} = ${key}`),
+      move: (index, { key }) => changes.push(`MOVE: ${index} = ${key}`),
+      remove: (index, { key }) => changes.push(`REMOVE: ${index} = ${key}`),
+    }
   );
 
   return changes;
@@ -63,7 +67,7 @@ test("remove last", () => {
     ["A", "B", "C", "D", "E", "F"]
   );
 
-  expect(changes).toEqual(["DELETE: 6 = G"]);
+  expect(changes).toEqual(["REMOVE: 6 = G"]);
 });
 
 test("remove first", () => {
@@ -72,7 +76,7 @@ test("remove first", () => {
     ["B", "C", "D", "E", "F"]
   );
 
-  expect(changes).toEqual(["DELETE: 0 = A"]);
+  expect(changes).toEqual(["REMOVE: 0 = A"]);
 });
 
 test("remove from middle", () => {
@@ -81,7 +85,7 @@ test("remove from middle", () => {
     ["A", "B", "D", "E", "F"]
   );
 
-  expect(changes).toEqual(["DELETE: 2 = C"]);
+  expect(changes).toEqual(["REMOVE: 2 = C"]);
 });
 
 test("remove first and last", () => {
@@ -90,7 +94,7 @@ test("remove first and last", () => {
     ["B", "C", "D", "E"]
   );
 
-  expect(changes).toEqual(["DELETE: 0 = A", "DELETE: 5 = F"]);
+  expect(changes).toEqual(["REMOVE: 0 = A", "REMOVE: 5 = F"]);
 });
 
 test("create", () => {
@@ -102,7 +106,7 @@ test("create", () => {
 test("clear", () => {
   const changes = simpleListDiff(["A", "B", "C"], []);
 
-  expect(changes).toEqual(["DELETE: 0 = A", "DELETE: 1 = B", "DELETE: 2 = C"]);
+  expect(changes).toEqual(["REMOVE: 0 = A", "REMOVE: 1 = B", "REMOVE: 2 = C"]);
 });
 
 test("change first", () => {
@@ -111,7 +115,7 @@ test("change first", () => {
     ["G", "B", "C", "D", "E", "F"]
   );
 
-  expect(changes).toEqual(["UPDATE: 0 = G"]);
+  expect(changes).toEqual(["MOVE: 0 = G"]);
 });
 
 test("change middle", () => {
@@ -120,7 +124,7 @@ test("change middle", () => {
     ["A", "B", "G", "D", "E", "F"]
   );
 
-  expect(changes).toEqual(["UPDATE: 2 = G"]);
+  expect(changes).toEqual(["MOVE: 2 = G"]);
 });
 
 test("change last", () => {
@@ -129,7 +133,7 @@ test("change last", () => {
     ["A", "B", "C", "D", "E", "G"]
   );
 
-  expect(changes).toEqual(["UPDATE: 5 = G"]);
+  expect(changes).toEqual(["MOVE: 5 = G"]);
 });
 
 test("swap", () => {
@@ -138,7 +142,7 @@ test("swap", () => {
     ["A", "E", "C", "D", "B", "F"]
   );
 
-  expect(changes).toEqual(["UPDATE: 1 = E", "UPDATE: 4 = B"]);
+  expect(changes).toEqual(["MOVE: 1 = E", "MOVE: 4 = B"]);
 });
 
 test("shuffle", () => {
@@ -148,12 +152,12 @@ test("shuffle", () => {
   );
 
   expect(changes).toEqual([
-    "UPDATE: 0 = E",
-    "UPDATE: 1 = C",
-    "UPDATE: 2 = F",
-    "UPDATE: 3 = A",
-    "UPDATE: 4 = B",
-    "UPDATE: 5 = D",
+    "MOVE: 0 = E",
+    "MOVE: 1 = C",
+    "MOVE: 2 = F",
+    "MOVE: 3 = A",
+    "MOVE: 4 = B",
+    "MOVE: 5 = D",
   ]);
 });
 
@@ -164,11 +168,11 @@ test("move items first", () => {
   );
 
   expect(changes).toEqual([
-    "UPDATE: 0 = E",
-    "UPDATE: 1 = F",
-    "UPDATE: 2 = A",
-    "UPDATE: 3 = B",
-    "UPDATE: 4 = C",
-    "UPDATE: 5 = D",
+    "MOVE: 0 = E",
+    "MOVE: 1 = F",
+    "MOVE: 2 = A",
+    "MOVE: 3 = B",
+    "MOVE: 4 = C",
+    "MOVE: 5 = D",
   ]);
 });
