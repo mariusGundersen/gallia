@@ -1,15 +1,13 @@
-type Keyed = { key: string };
-
-export interface Callbacks<T extends Keyed> {
-  noop(item: T): void;
-  insert(newItem: T): void;
-  move(item: T): void;
-  remove(prevItem: T): void;
+export interface Callbacks<T> {
+  noop(key: T, index: number): void;
+  insert(key: T, index: number): void;
+  move(key: T, index: number): void;
+  remove(key: T, index: number): void;
 }
 
-export default function listDiff<T extends Keyed>(
+export default function listDiff<T>(
   oldList: T[],
-  oldMap: Map<string, number>,
+  oldMap: Map<T, number>,
   currentList: T[],
   callbacks: Callbacks<T>
 ) {
@@ -18,9 +16,9 @@ export default function listDiff<T extends Keyed>(
   let currentIndex = 0;
   const lengthCurrent = currentList.length;
 
-  const currentMap = new Map<string, number>();
+  const currentMap = new Map<T, number>();
   for (currentIndex = 0; currentIndex < lengthCurrent; currentIndex++) {
-    currentMap.set(currentList[currentIndex].key, currentIndex);
+    currentMap.set(currentList[currentIndex], currentIndex);
   }
 
   // loop through all new items
@@ -33,8 +31,8 @@ export default function listDiff<T extends Keyed>(
       // The item is in the correct locations
       // The index might have changed though
       // TODO: handle index changed
-      if (oldItem.key === currentItem.key) {
-        callbacks.noop(currentItem);
+      if (oldItem === currentItem) {
+        callbacks.noop(currentItem, currentIndex);
         oldIndex++;
         currentIndex++;
       } else {
@@ -47,10 +45,10 @@ export default function listDiff<T extends Keyed>(
         // - the item that was here has been removed, the new item has moved from sowhere else
         // - the item that was here has been moved somewhere else and a new item has been inserted
 
-        const indexOfOldItemInCurrentList = currentMap.get(oldItem.key);
+        const indexOfOldItemInCurrentList = currentMap.get(oldItem);
         const oldItemExistsInCurrentList =
           indexOfOldItemInCurrentList !== undefined;
-        const indexOfCurrentItemInOldList = oldMap.get(currentItem.key);
+        const indexOfCurrentItemInOldList = oldMap.get(currentItem);
         const currentItemExistsInOldList =
           indexOfCurrentItemInOldList !== undefined;
 
@@ -66,44 +64,44 @@ export default function listDiff<T extends Keyed>(
             oldIndex++;
           } else if ((indexOfOldItemInCurrentList as number) > oldIndex) {
             // if the item that was here is somewhere further ahead
-            callbacks.move(currentItem);
+            callbacks.move(currentItem, currentIndex);
             currentIndex++;
           } else {
-            callbacks.move(currentItem);
+            callbacks.move(currentItem, currentIndex);
             oldIndex++;
             currentIndex++;
           }
         } else if (!oldItemExistsInCurrentList && !currentItemExistsInOldList) {
           // the item that was here has been removed
           // the item that is here has been inserted
-          callbacks.remove(oldItem);
-          callbacks.insert(currentItem);
+          callbacks.remove(oldItem, oldIndex);
+          callbacks.insert(currentItem, currentIndex);
           oldIndex++;
           currentIndex++;
         } else if (!oldItemExistsInCurrentList && currentItemExistsInOldList) {
           // the item that was here has been removed
           // the item that is here has been moved from somewhere else
-          callbacks.remove(oldItem);
+          callbacks.remove(oldItem, oldIndex);
           if (indexOfCurrentItemInOldList === oldIndex + 1) {
             oldIndex++;
           } else {
-            callbacks.move(currentItem);
+            callbacks.move(currentItem, currentIndex);
             oldIndex++;
             currentIndex++;
           }
         } else if (!currentItemExistsInOldList && oldItemExistsInCurrentList) {
-          callbacks.insert(currentItem);
+          callbacks.insert(currentItem, currentIndex);
           currentIndex++;
         }
       }
     } else {
       // if there are no more items in the old list
       // then we just insert the new items
-      const indexfOfCurrentItemInOldList = oldMap.get(currentItem.key);
+      const indexfOfCurrentItemInOldList = oldMap.get(currentItem);
       if (indexfOfCurrentItemInOldList !== undefined) {
-        callbacks.move(currentItem);
+        callbacks.move(currentItem, currentIndex);
       } else {
-        callbacks.insert(currentItem);
+        callbacks.insert(currentItem, currentIndex);
       }
       currentIndex++;
     }
@@ -111,9 +109,9 @@ export default function listDiff<T extends Keyed>(
 
   for (; oldIndex < oldLength; oldIndex++) {
     const oldItem = oldList[oldIndex];
-    const currentItemExistsInOldList = currentMap.has(oldItem.key);
+    const currentItemExistsInOldList = currentMap.has(oldItem);
     if (!currentItemExistsInOldList) {
-      callbacks.remove(oldItem);
+      callbacks.remove(oldItem, oldIndex);
     }
   }
 

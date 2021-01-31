@@ -9,8 +9,6 @@ import { makeExpressionEvaluator, makeKeyEvaluator } from "../utils.js";
 import { CreateWalker, HandleGenerator } from "./index.js";
 
 interface Source {
-  key: string;
-  index: number;
   value: unknown;
   startOfItem: Node;
   endOfItem: Node;
@@ -55,21 +53,19 @@ export function* handleFor(
     parent!.insertBefore(before, element);
     parent!.replaceChild(after, element);
 
-    let oldList: { key: string; value: unknown }[] = [];
-    let oldMap = new Map<string, number>();
-    const keyedValues = new Map<string, Source>();
+    let oldList: unknown[] = [];
+    let oldMap = new Map<unknown, number>();
+    const keyedValues = new Map<unknown, Source>();
     scope.observeAndReact(
       () => expression(data) as unknown[],
       (items) => {
         let index = 0;
         let endOfPreviousItem = before;
-        const currentList = items.map((value, index) => ({
-          key: getKey(value, index),
-          value,
-        }));
+        const currentList = items.map(getKey);
 
         oldMap = listDiff(oldList, oldMap, currentList, {
-          insert({ key, value }) {
+          insert(key, i) {
+            const value = items[i];
             const clone = documentFragment.cloneNode(true);
             const startOfItem = clone.firstChild as Node;
             startOfItem.textContent = `start of ${index} with key ${key}`;
@@ -79,12 +75,10 @@ export function* handleFor(
             const { scope: subScope, destroy } = scope.createSubScope();
 
             const source: Source = {
-              key,
               value,
-              index,
-              startOfItem: startOfItem,
-              endOfItem: endOfItem,
-              destroy: destroy,
+              startOfItem,
+              endOfItem,
+              destroy,
               observable: makeObservable({
                 value,
                 index,
@@ -105,13 +99,13 @@ export function* handleFor(
             endOfPreviousItem = endOfItem;
             index++;
           },
-          move(item) {
-            const source = keyedValues.get(item.key) as Source;
-            source.index = index;
+          move(key, i) {
+            const value = items[i];
+            const source = keyedValues.get(key) as Source;
             source.observable.index = index;
-            if (source.value !== item.value) {
-              source.value = item.value;
-              source.observable.value = item.value;
+            if (source.value !== value) {
+              source.value = value;
+              source.observable.value = value;
             }
 
             moveItemAfter(
@@ -123,22 +117,23 @@ export function* handleFor(
             endOfPreviousItem = source.endOfItem;
             index++;
           },
-          noop(item) {
+          noop(key, i) {
             // item has not moved
-            const source = keyedValues.get(item.key) as Source;
-            if (source.value !== item.value) {
-              source.value = item.value;
-              source.observable.value = item.value;
+            const value = items[i];
+            const source = keyedValues.get(key) as Source;
+            if (source.value !== value) {
+              source.value = value;
+              source.observable.value = value;
             }
 
             endOfPreviousItem = source.endOfItem;
             index++;
           },
-          remove(item) {
-            const source = keyedValues.get(item.key) as Source;
+          remove(key) {
+            const source = keyedValues.get(key) as Source;
             source.destroy();
             removeItem(source.startOfItem, source.endOfItem);
-            keyedValues.delete(item.key);
+            keyedValues.delete(key);
           },
         });
 
@@ -148,7 +143,7 @@ export function* handleFor(
   };
 }
 
-const indexKeyExpression = (_: unknown, $index: number) => $index;
+const indexKeyExpression = (_: unknown, $index: number) => $index as unknown;
 
 function createSubData(data: ObservableObject, name: string, source: Source) {
   return Object.create(data, {
