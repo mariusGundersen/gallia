@@ -8,34 +8,34 @@ export interface Callbacks<T extends Keyed> {
 }
 
 export default function listDiff<T extends Keyed>(
-  listPrev: T[],
-  mapPrev: Map<string, number>,
-  listCurrent: T[],
+  oldList: T[],
+  oldMap: Map<string, number>,
+  currentList: T[],
   callbacks: Callbacks<T>
 ) {
-  let prevIndex = 0;
-  const lengthPrev = listPrev.length;
+  let oldIndex = 0;
+  const oldLength = oldList.length;
   let currentIndex = 0;
-  const lengthCurrent = listCurrent.length;
+  const lengthCurrent = currentList.length;
 
-  const mapCurrent = new Map<string, number>();
+  const currentMap = new Map<string, number>();
   for (currentIndex = 0; currentIndex < lengthCurrent; currentIndex++) {
-    mapCurrent.set(listCurrent[currentIndex].key, currentIndex);
+    currentMap.set(currentList[currentIndex].key, currentIndex);
   }
 
   // loop through all new items
-  for (prevIndex = 0, currentIndex = 0; currentIndex < lengthCurrent; ) {
-    const itemCurrent = listCurrent[currentIndex];
+  for (oldIndex = 0, currentIndex = 0; currentIndex < lengthCurrent; ) {
+    const currentItem = currentList[currentIndex];
     // if there are still items in the old list, we should compare them
-    if (prevIndex < lengthPrev) {
-      const itemPrev = listPrev[prevIndex];
+    if (oldIndex < oldLength) {
+      const oldItem = oldList[oldIndex];
 
       // The item is in the correct locations
       // The index might have changed though
       // TODO: handle index changed
-      if (itemPrev.key === itemCurrent.key) {
-        callbacks.noop(itemCurrent);
-        prevIndex++;
+      if (oldItem.key === currentItem.key) {
+        callbacks.noop(currentItem);
+        oldIndex++;
         currentIndex++;
       } else {
         // The item is not in the correct location
@@ -47,73 +47,75 @@ export default function listDiff<T extends Keyed>(
         // - the item that was here has been removed, the new item has moved from sowhere else
         // - the item that was here has been moved somewhere else and a new item has been inserted
 
-        const itemAIndexInListB = mapCurrent.get(itemPrev.key);
-        const itemAExistsInListB = itemAIndexInListB !== undefined;
-        const itemBIndexInListA = mapPrev.get(itemCurrent.key);
-        const itemBExistsInListA = itemBIndexInListA !== undefined;
+        const indexOfOldItemInCurrentList = currentMap.get(oldItem.key);
+        const oldItemExistsInCurrentList =
+          indexOfOldItemInCurrentList !== undefined;
+        const indexOfCurrentItemInOldList = oldMap.get(currentItem.key);
+        const currentItemExistsInOldList =
+          indexOfCurrentItemInOldList !== undefined;
 
-        if (itemAExistsInListB && itemBExistsInListA) {
+        if (oldItemExistsInCurrentList && currentItemExistsInOldList) {
           // The item that was here has been moved to somewhere else
           // The item that is here has been moved from sowhere else
-          if (itemBIndexInListA === prevIndex + 1) {
+          if (indexOfCurrentItemInOldList === oldIndex + 1) {
             // if the item that is here was one step ahead
             // since the item that was here has been moved, we will deal with it later
             // when we discover where it was moved.
             // Since the item that is here was one step ahead, it will move to this spot
             // when the item that was here is moved, so we don't need to do anything.
-            prevIndex++;
-          } else if ((itemAIndexInListB as number) > prevIndex) {
+            oldIndex++;
+          } else if ((indexOfOldItemInCurrentList as number) > oldIndex) {
             // if the item that was here is somewhere further ahead
-            callbacks.move(itemCurrent);
+            callbacks.move(currentItem);
             currentIndex++;
           } else {
-            callbacks.move(itemCurrent);
-            prevIndex++;
+            callbacks.move(currentItem);
+            oldIndex++;
             currentIndex++;
           }
-        } else if (!itemAExistsInListB && !itemBExistsInListA) {
+        } else if (!oldItemExistsInCurrentList && !currentItemExistsInOldList) {
           // the item that was here has been removed
           // the item that is here has been inserted
-          callbacks.remove(itemPrev);
-          callbacks.insert(itemCurrent);
-          prevIndex++;
+          callbacks.remove(oldItem);
+          callbacks.insert(currentItem);
+          oldIndex++;
           currentIndex++;
-        } else if (!itemAExistsInListB && itemBExistsInListA) {
+        } else if (!oldItemExistsInCurrentList && currentItemExistsInOldList) {
           // the item that was here has been removed
           // the item that is here has been moved from somewhere else
-          callbacks.remove(itemPrev);
-          if (itemBIndexInListA === prevIndex + 1) {
-            prevIndex++;
+          callbacks.remove(oldItem);
+          if (indexOfCurrentItemInOldList === oldIndex + 1) {
+            oldIndex++;
           } else {
-            callbacks.move(itemCurrent);
-            prevIndex++;
+            callbacks.move(currentItem);
+            oldIndex++;
             currentIndex++;
           }
-        } else if (!itemBExistsInListA && itemAExistsInListB) {
-          callbacks.insert(itemCurrent);
+        } else if (!currentItemExistsInOldList && oldItemExistsInCurrentList) {
+          callbacks.insert(currentItem);
           currentIndex++;
         }
       }
     } else {
       // if there are no more items in the old list
       // then we just insert the new items
-      const itemBExistsInListA = mapPrev.has(itemCurrent.key);
-      if (itemBExistsInListA) {
-        callbacks.move(itemCurrent);
+      const indexfOfCurrentItemInOldList = oldMap.get(currentItem.key);
+      if (indexfOfCurrentItemInOldList !== undefined) {
+        callbacks.move(currentItem);
       } else {
-        callbacks.insert(itemCurrent);
+        callbacks.insert(currentItem);
       }
       currentIndex++;
     }
   }
 
-  for (; prevIndex < lengthPrev; prevIndex++) {
-    const itemA = listPrev[prevIndex];
-    const itemAExistsInListB = mapCurrent.has(itemA.key);
-    if (!itemAExistsInListB) {
-      callbacks.remove(itemA);
+  for (; oldIndex < oldLength; oldIndex++) {
+    const oldItem = oldList[oldIndex];
+    const currentItemExistsInOldList = currentMap.has(oldItem.key);
+    if (!currentItemExistsInOldList) {
+      callbacks.remove(oldItem);
     }
   }
 
-  return mapCurrent;
+  return currentMap;
 }
