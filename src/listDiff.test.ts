@@ -1,35 +1,38 @@
-import listDiff from "./listDiff";
+import listDiff, { Callbacks } from "./listDiff";
 
 function simpleListDiff(a: string[], b: string[]) {
+  const listOld = a.map((key) => ({ key }));
+  const listCurrent = b.map((key) => ({ key }));
+
   const changes: string[] = [];
   const result = [...a];
   let index = 0;
 
-  listDiff(
-    a.map((key) => ({ key })),
-    b.map((key) => ({ key })),
-    {
-      noop({ key }) {
-        result[index] = key;
-        index++;
-      },
-      insert({ key }) {
-        changes.push(`INSERT: ${index} = ${key}`);
-        result.splice(index, 0, key);
-        index++;
-      },
-      move({ key }) {
-        changes.push(`MOVE: ${index} = ${key}`);
-        result.splice(result.indexOf(key), 1);
-        result.splice(index, 0, key);
-        index++;
-      },
-      remove({ key }) {
-        changes.push(`REMOVE: ${index} = ${key}`);
-        result.splice(index, 1);
-      },
-    }
-  );
+  const mapOld = listDiff([], new Map(), listOld, ({
+    insert() {},
+  } as unknown) as Callbacks<{ key: string }>);
+
+  listDiff(listOld, mapOld, listCurrent, {
+    noop({ key }) {
+      result[index] = key;
+      index++;
+    },
+    insert({ key }) {
+      changes.push(`INSERT: ${index} = ${key}`);
+      result.splice(index, 0, key);
+      index++;
+    },
+    move({ key }) {
+      changes.push(`MOVE: ${index} = ${key}`);
+      result.splice(result.indexOf(key), 1);
+      result.splice(index, 0, key);
+      index++;
+    },
+    remove({ key }) {
+      changes.push(`REMOVE: ${index} = ${key}`);
+      result.splice(index, 1);
+    },
+  });
 
   expect(result).toEqual(b);
 
