@@ -28,7 +28,10 @@ export function makeEventHandler(expression: string) {
 }
 
 export function makeKeyEvaluator(itemName: string, expression: string) {
-  return new Function(itemName, "$index", `return ${expression};`);
+  return new Function(itemName, "$index", `return ${expression};`) as (
+    value: unknown,
+    index: number
+  ) => unknown;
 }
 
 export function isNewable(

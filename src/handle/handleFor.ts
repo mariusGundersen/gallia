@@ -1,4 +1,5 @@
 import { insertAfter } from "../domUtils.js";
+import listDiff from "../listDiff.js";
 import {
   makeObservable,
   ObservableObject,
@@ -8,8 +9,6 @@ import { makeExpressionEvaluator, makeKeyEvaluator } from "../utils.js";
 import { CreateWalker, HandleGenerator } from "./index.js";
 
 interface Source {
-  key: unknown;
-  index: number;
   value: unknown;
   startOfItem: Node;
   endOfItem: Node;
@@ -54,20 +53,19 @@ export function* handleFor(
     parent!.insertBefore(before, element);
     parent!.replaceChild(after, element);
 
-    const oldItems = new Map<unknown, Source>();
+    let oldList: unknown[] = [];
+    let oldMap = new Map<unknown, number>();
+    const keyedValues = new Map<unknown, Source>();
     scope.observeAndReact(
-      () => Array.from(expression(data)),
+      () => expression(data) as unknown[],
       (items) => {
-        const oldList: (Source | undefined)[] = [...oldItems.values()].sort(
-          (a, b) => a.index - b.index
-        );
+        let index = 0;
         let endOfPreviousItem = before;
-        for (let index = 0, length = items.length; index < length; index++) {
-          const value = items[index];
-          const key = getKey(value, index);
-          const oldItem = oldItems.get(key);
-          if (!oldItem) {
-            // this is a new item
+        const currentList = items.map(getKey);
+
+        oldMap = listDiff(oldList, oldMap, currentList, {
+          insert(key, i) {
+            const value = items[i];
             const clone = documentFragment.cloneNode(true);
             const startOfItem = clone.firstChild as Node;
             startOfItem.textContent = `start of ${index} with key ${key}`;
@@ -77,9 +75,7 @@ export function* handleFor(
             const { scope: subScope, destroy } = scope.createSubScope();
 
             const source: Source = {
-              key,
               value,
-              index,
               startOfItem,
               endOfItem,
               destroy,
@@ -88,6 +84,8 @@ export function* handleFor(
                 index,
               }),
             };
+
+            keyedValues.set(key, source);
 
             const subData = createSubData(data, name, source);
 
@@ -99,50 +97,53 @@ export function* handleFor(
             walk(fragment, subData, subScope);
 
             endOfPreviousItem = endOfItem;
-            oldItems.set(key, source);
-          } else if (oldItem.index !== index) {
-            // item has moved
-            const oldIndex = oldItem.index;
-            oldItem.index = index;
-            oldItem.observable.index = index;
-            if (oldItem.value !== value) {
-              oldItem.value = value;
-              oldItem.observable.value = value;
+            index++;
+          },
+          move(key, i) {
+            const value = items[i];
+            const source = keyedValues.get(key) as Source;
+            source.observable.index = index;
+            if (source.value !== value) {
+              source.value = value;
+              source.observable.value = value;
             }
 
             moveItemAfter(
-              oldItem.startOfItem,
-              oldItem.endOfItem,
+              source.startOfItem,
+              source.endOfItem,
               endOfPreviousItem
             );
 
-            oldList[oldIndex] = undefined;
-            endOfPreviousItem = oldItem.endOfItem;
-          } else {
+            endOfPreviousItem = source.endOfItem;
+            index++;
+          },
+          noop(key, i) {
             // item has not moved
-            oldList[oldItem.index] = undefined;
-            endOfPreviousItem = oldItem.endOfItem;
-            if (oldItem.value !== value) {
-              oldItem.value = value;
-              oldItem.observable.value = value;
+            const value = items[i];
+            const source = keyedValues.get(key) as Source;
+            if (source.value !== value) {
+              source.value = value;
+              source.observable.value = value;
             }
-          }
-        }
 
-        // remove any remaining items from before
-        for (let i = 0, l = oldList.length; i < l; i++) {
-          const oldItem = oldList[i];
-          if (!oldItem) continue;
-          oldItems.delete(oldItem.key);
-          oldItem.destroy();
-          removeItem(oldItem.startOfItem, oldItem.endOfItem);
-        }
+            endOfPreviousItem = source.endOfItem;
+            index++;
+          },
+          remove(key) {
+            const source = keyedValues.get(key) as Source;
+            source.destroy();
+            removeItem(source.startOfItem, source.endOfItem);
+            keyedValues.delete(key);
+          },
+        });
+
+        oldList = currentList;
       }
     );
   };
 }
 
-const indexKeyExpression = (_: unknown, $index: number) => $index;
+const indexKeyExpression = (_: unknown, $index: number) => $index as unknown;
 
 function createSubData(data: ObservableObject, name: string, source: Source) {
   return Object.create(data, {
