@@ -1,7 +1,7 @@
 type Keyed = { key: string };
 
 interface Callbacks<T extends Keyed> {
-  noop(): void;
+  noop(item: T): void;
   insert(newItem: T): void;
   move(oldItem: T): void;
   remove(oldItem: T): void;
@@ -32,11 +32,11 @@ export default function listDiff<T extends Keyed>(
       if (a < la) {
         const itemA = listA[a];
 
+        // The item is in the correct locations
+        // The index might have changed though
+        // TODO: handle index changed
         if (itemA.key === itemB.key) {
-          // The item is in the correct locations
-          // The index might have changed though
-          // TODO: handle index changed
-          callbacks.noop();
+          callbacks.noop(itemB);
           a++;
           continue loopB;
         } else {
@@ -53,10 +53,18 @@ export default function listDiff<T extends Keyed>(
           const itemBExistsInListA = mapA.get(itemB.key);
 
           if (itemAExistsInListB && itemBExistsInListA) {
+            // The item that was here has been moved to somewhere else
+            // The item that is here has been moved from sowhere else
             if (itemBExistsInListA.index === a + 1) {
+              // if the item that is here was one step ahead
+              // since the item that was here has been moved, we will deal with it later
+              // when we discover where it was moved.
+              // Since the item that is here was one step ahead, it will move to this spot
+              // when the item that was here is moved, so we don't need to do anything.
               a++;
               continue loopA;
-            } else if (itemAExistsInListB.index >= a + 1) {
+            } else if (itemAExistsInListB.index > a) {
+              // if the item that was here is somewhere further ahead
               callbacks.move(itemB);
               continue loopB;
             } else {
@@ -65,13 +73,17 @@ export default function listDiff<T extends Keyed>(
               continue loopB;
             }
           } else if (!itemAExistsInListB && !itemBExistsInListA) {
+            // the item that was here has been removed
+            // the item that is here has been inserted
             callbacks.remove(itemA);
             callbacks.insert(itemB);
             a++;
             continue loopB;
-          } else if (!itemAExistsInListB) {
+          } else if (!itemAExistsInListB && itemBExistsInListA) {
+            // the item that was here has been removed
+            // the item that is here has been moved from somewhere else
             callbacks.remove(itemA);
-            if (itemBExistsInListA!.index === a + 1) {
+            if (itemBExistsInListA.index === a + 1) {
               a++;
               continue loopA;
             } else {
@@ -79,7 +91,7 @@ export default function listDiff<T extends Keyed>(
               a++;
               continue loopB;
             }
-          } else if (!itemBExistsInListA) {
+          } else if (!itemBExistsInListA && itemAExistsInListB) {
             callbacks.insert(itemB);
             continue loopB;
           }
