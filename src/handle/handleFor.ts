@@ -166,8 +166,16 @@ function createSubData(data: ObservableObject, name: string, source: Source) {
 }
 
 function rememberTheChildren(clone: Node): Node {
+  const list = clone.childNodes;
+  const count = list.length;
+  const childNodes = new Array(count);
+
+  for (let i = 0; i < count; i++) {
+    childNodes[i] = list[i];
+  }
+
   return {
-    childNodes: Array.from(clone.childNodes),
+    childNodes,
   } as any;
 }
 

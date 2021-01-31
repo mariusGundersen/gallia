@@ -78,6 +78,14 @@ export default class index extends Observable {
   list = [];
   selected = -1;
 
+  select(item) {
+    this.selected = this.selected === item.id ? -i : item.id;
+  }
+
+  remove(item) {
+    this.list = this.list.filter((i) => i !== item);
+  }
+
   create() {
     this.list = buildData(1000);
   }
