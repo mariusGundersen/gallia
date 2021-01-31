@@ -72,7 +72,7 @@ export function* handleFor(
             const endOfItem = clone.lastChild as Node;
             endOfItem.textContent = `end of ${index}`;
 
-            const { scope: subScope, destroy } = scope.createSubScope();
+            const [subScope, destroy] = scope.createSubScope();
 
             const source: Source = {
               value,

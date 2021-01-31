@@ -105,7 +105,7 @@ describe("Scopes", () => {
 
     const spy = jest.fn();
 
-    const { scope, destroy } = globalObservationScope.createSubScope();
+    const [scope, destroy] = globalObservationScope.createSubScope();
 
     scope.observeAndReact(() => data.visible, spy);
 
@@ -130,8 +130,8 @@ describe("Scopes", () => {
     const spy = jest.fn();
 
     const unobserve = globalObservationScope
-      .createSubScope()
-      .scope.observeAndReact(() => data.visible, spy);
+      .createSubScope()[0]
+      .observeAndReact(() => data.visible, spy);
 
     expect(spy).toHaveBeenCalledWith(false);
 
@@ -153,7 +153,7 @@ describe("Scopes", () => {
 
     const spy = jest.fn();
 
-    const { scope, destroy } = globalObservationScope.createSubScope();
+    const [scope, destroy] = globalObservationScope.createSubScope();
 
     destroy();
 
@@ -165,7 +165,7 @@ describe("Scopes", () => {
 
     const spy = jest.fn();
 
-    const { scope, destroy } = globalObservationScope.createSubScope();
+    const [scope, destroy] = globalObservationScope.createSubScope();
 
     const unobserve = scope.observeAndReact(() => data.visible, spy);
 
@@ -175,7 +175,7 @@ describe("Scopes", () => {
   });
 
   test("destroy already destroyed scope", () => {
-    const { destroy } = globalObservationScope.createSubScope();
+    const [, destroy] = globalObservationScope.createSubScope();
 
     destroy();
 
@@ -183,9 +183,9 @@ describe("Scopes", () => {
   });
 
   test("destroy already destroyed sub-scope", () => {
-    const { scope, destroy } = globalObservationScope.createSubScope();
+    const [scope, destroy] = globalObservationScope.createSubScope();
 
-    const { destroy: destroySubScope } = scope.createSubScope();
+    const [, destroySubScope] = scope.createSubScope();
 
     destroy();
 
@@ -193,9 +193,9 @@ describe("Scopes", () => {
   });
 
   test("destroy scope with destroyed sub-scope", () => {
-    const { scope, destroy } = globalObservationScope.createSubScope();
+    const [scope, destroy] = globalObservationScope.createSubScope();
 
-    const { destroy: destroySubScope } = scope.createSubScope();
+    const [, destroySubScope] = scope.createSubScope();
 
     destroySubScope();
 
@@ -203,7 +203,7 @@ describe("Scopes", () => {
   });
 
   test("onDestroy", () => {
-    const { scope, destroy } = globalObservationScope.createSubScope();
+    const [scope, destroy] = globalObservationScope.createSubScope();
 
     const spy = jest.fn();
 
@@ -215,9 +215,9 @@ describe("Scopes", () => {
   });
 
   test("onDestroy in sub-scope", () => {
-    const { scope, destroy } = globalObservationScope.createSubScope();
+    const [scope, destroy] = globalObservationScope.createSubScope();
 
-    const { scope: subScope } = scope.createSubScope();
+    const [subScope] = scope.createSubScope();
 
     const spy = jest.fn();
 
@@ -229,9 +229,9 @@ describe("Scopes", () => {
   });
 
   test("onDestroy in parent-scope", () => {
-    const { scope } = globalObservationScope.createSubScope();
+    const [scope] = globalObservationScope.createSubScope();
 
-    const { scope: subScope, destroy } = scope.createSubScope();
+    const [subScope, destroy] = scope.createSubScope();
 
     const spy = jest.fn();
 

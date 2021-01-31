@@ -33,7 +33,7 @@ export default function* handle(node: Node, depth = 0): HandleGenerator {
       const walk = createWalker(node);
       yield (node, data, scope) =>
         applyComponent(node as Element, path).then((subData) => {
-          const { scope: subScope } = scope.createSubScope();
+          const [subScope] = scope.createSubScope();
           walk(node, subData, subScope);
         });
     } else if (isTemplateElement(node)) {

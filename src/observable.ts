@@ -144,7 +144,7 @@ const rootContext: Context = {
 export interface ObservationScope {
   observeAndReact<T>(getter: () => T, reaction: (value: T) => void): () => void;
   onDestroy(listener: Listener): void;
-  createSubScope(): { scope: ObservationScope; destroy(): void };
+  createSubScope(): [scope: ObservationScope, destroy: () => void];
 }
 
 function createObservationScope(context: Context): ObservationScope {
@@ -172,11 +172,52 @@ function createObservationScope(context: Context): ObservationScope {
       context.addDestroyListener(listener);
     },
     createSubScope() {
-      const [destroy, subContext] = createSubContext(context);
-      return {
-        scope: createObservationScope(subContext),
-        destroy,
+      let observers: Set<Observer> | null = new Set<Observer>();
+      const destroyListeners = new Set<Listener>();
+
+      function destroy() {
+        if (!observers)
+          throw new Error("Attempted to destory an already destroyed scope");
+
+        context.removeDestroyListener(destroy);
+
+        for (const observer of observers) {
+          unobserve(observer);
+        }
+
+        for (const destroyListener of destroyListeners) {
+          destroyListener();
+        }
+
+        observers = null;
+      }
+
+      context.addDestroyListener(destroy);
+
+      const subContext: Context = {
+        observe<T>(observer: Observer, effect: () => T) {
+          if (!observers)
+            throw new Error("Attempted to observe a destroyed scope");
+
+          observers.add(observer);
+          return observe(observer, effect);
+        },
+        unobserve(observer: Observer) {
+          if (!observers)
+            throw new Error("Attempted to unobserve a destroyed scope");
+
+          observers.delete(observer);
+          unobserve(observer);
+        },
+        addDestroyListener(listener: Listener) {
+          destroyListeners.add(listener);
+        },
+        removeDestroyListener(listener: Listener) {
+          destroyListeners.delete(listener);
+        },
       };
+
+      return [createObservationScope(subContext), destroy];
     },
   };
 }
@@ -186,54 +227,3 @@ const globalObservationScope = createObservationScope(rootContext);
 export { globalObservationScope };
 
 function noop() {}
-
-function createSubContext({
-  addDestroyListener,
-  removeDestroyListener,
-}: Destroyable): [() => void, Context] {
-  let observers: Set<Observer> | null = new Set<Observer>();
-  const destroyListeners = new Set<Listener>();
-
-  function destroy() {
-    if (!observers)
-      throw new Error("Attempted to destory an already destroyed scope");
-
-    removeDestroyListener(destroy);
-
-    for (const observer of observers) {
-      unobserve(observer);
-    }
-
-    for (const destroyListener of destroyListeners) {
-      destroyListener();
-    }
-
-    observers = null;
-  }
-
-  addDestroyListener(destroy);
-
-  const subContext: Context = {
-    observe<T>(observer: Observer, effect: () => T) {
-      if (!observers) throw new Error("Attempted to observe a destroyed scope");
-
-      observers.add(observer);
-      return observe(observer, effect);
-    },
-    unobserve(observer: Observer) {
-      if (!observers)
-        throw new Error("Attempted to unobserve a destroyed scope");
-
-      observers.delete(observer);
-      unobserve(observer);
-    },
-    addDestroyListener(listener: Listener) {
-      destroyListeners.add(listener);
-    },
-    removeDestroyListener(listener: Listener) {
-      destroyListeners.delete(listener);
-    },
-  };
-
-  return [destroy, subContext];
-}

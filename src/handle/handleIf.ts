@@ -29,7 +29,7 @@ export function* handleIf(
       (show) => {
         if (show && !destroyScope) {
           const clone = documentFragment.cloneNode(true);
-          const { scope: subScope, destroy } = scope.createSubScope();
+          const [subScope, destroy] = scope.createSubScope();
           destroyScope = destroy;
 
           // remember the childNodes so that we can send them to the handlers
