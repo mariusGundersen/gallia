@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+
+<div x-component="./index.js">
+  <button .on-click="add()">Add</button>
+  <ul>
+    <template x-for="item of list" x-key="item.id">
+      <li x-component="./item.js">
+        <span>${time}</span>
+      </li>
+      <button .on-click="$parent.remove($index)">remove</button>
+    </template>
+  </ul>
+</div>
+
+<script type="module">
+  import start from "/gallia/main.js";
+
+  start();
+</script>

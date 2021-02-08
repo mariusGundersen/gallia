@@ -2,11 +2,11 @@ import {
   isDocumentFragment,
   isElement,
   isTemplateElement,
-  isTextNode,
+  isTextNode
 } from "../domUtils.js";
-import { applyComponent } from "../main.js";
 import { ObservableObject, ObservationScope } from "../observable.js";
 import handleAttributes from "./handleAttribute.js";
+import handleComponent from "./handleComponent.js";
 import { handleFor } from "./handleFor.js";
 import { handleIf } from "./handleIf.js";
 import handleProperties from "./handleProperty.js";
@@ -28,14 +28,8 @@ export default function* handle(node: Node, depth = 0): HandleGenerator {
   } else if (isTextNode(node)) {
     yield* handleText(node);
   } else if (isElement(node)) {
-    const path = node.getAttribute("x-component");
-    if (path && depth > 0) {
-      const walk = createWalker(node);
-      yield (node, data, scope) =>
-        applyComponent(node as Element, path).then((subData) => {
-          const [subScope] = scope.createSubScope();
-          walk(node, subData, subScope);
-        });
+    if (depth > 0 && node.hasAttribute("x-component")) {
+      yield* handleComponent(node, createWalker);
     } else if (isTemplateElement(node)) {
       yield* handleFor(node, createWalker);
       yield* handleIf(node, createWalker);
@@ -48,6 +42,7 @@ export default function* handle(node: Node, depth = 0): HandleGenerator {
 }
 
 export type CreateWalker = typeof createWalker;
+
 export function createWalker(node: Node, depth = 0) {
   const handlers = Array.from(handle(node, depth));
   return (node: Node, data: ObservableObject, scope: ObservationScope) => {

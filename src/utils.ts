@@ -40,9 +40,17 @@ export function isNewable(
   return component.toString().startsWith("class");
 }
 
+export function isFunction(value: any): value is Function {
+  return typeof value === "function";
+}
+
 export function ensureAbsolute(path: string) {
   // Ensure the path starts with /, so that we don't load anything relative to this module
-  return path.startsWith("/") ? path : "/" + path;
+  if (path.startsWith('./')) {
+    return new URL(path, document.location.href).pathname;
+  }
+
+  return path;
 }
 
 function getOrAdd<TKey, TValue>(
