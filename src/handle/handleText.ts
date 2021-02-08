@@ -1,16 +1,16 @@
-import { ObservableObject, ObservationScope } from "../observable.js";
 import { makeTextEvaluator } from "../utils.js";
+import { HandleGenerator } from "./index.js";
 
-export default function* handleText(element: Text, depth = 0) {
+export default function* handleText(element: Text, depth = 0): HandleGenerator {
   if (!element.textContent) return;
 
   try {
-    const expression = makeTextEvaluator(element.textContent);
+    const expression = makeTextEvaluator(element.textContent, depth);
 
-    yield (node: Node, data: ObservableObject, scope: ObservationScope) =>
+    yield (node, { data, parents, scope }) =>
       scope.observeAndReact(
-        () => expression(data),
+        () => expression(data, parents),
         (text) => (node.textContent = text)
       );
-  } catch {}
+  } catch { }
 }

@@ -1,30 +1,18 @@
-const expressionEvaluators = new Map<string, Function>();
-export function makeExpressionEvaluator(expression: string) {
-  return getOrAdd(
-    expressionEvaluators,
-    expression,
-    (expression) => new Function("$data", `with($data){return ${expression};}`)
-  );
+import { ObservableObject } from "./observable";
+
+export type ExpressionFunction<T> = (data: ObservableObject, parents: ObservableObject[]) => T;
+export type ExpressionFunctionFactory<T> = (expression: string) => ExpressionFunction<T>;
+
+export function makeExpressionEvaluator(expression: string, parentCount = 0) {
+  return new Function("$this", "$parents", buildClosure(`return ${expression};`, parentCount)) as ExpressionFunction<any>;
 }
 
-const textEvaluators = new Map<string, Function>();
-export function makeTextEvaluator(expression: string) {
-  return getOrAdd(
-    textEvaluators,
-    expression,
-    (expression) =>
-      new Function("$data", `with($data){return \`${expression}\`;}`)
-  );
+export function makeTextEvaluator(expression: string, parentCount = 0) {
+  return new Function("$this", "$parents", buildClosure(`return \`${expression}\`;`, parentCount)) as ExpressionFunction<string>;
 }
 
-const eventHandlers = new Map<string, Function>();
-export function makeEventHandler(expression: string) {
-  return getOrAdd(
-    eventHandlers,
-    expression,
-    (expression) =>
-      new Function("$data", `return $e => {with($data){${expression};}}`)
-  );
+export function makeEventHandler(expression: string, parentCount = 0) {
+  return new Function("$this", "$parents", `return $e => {${buildClosure(expression, parentCount)}}`) as ExpressionFunction<(e: any) => void>;
 }
 
 export function makeKeyEvaluator(itemName: string, expression: string) {
@@ -53,14 +41,14 @@ export function ensureAbsolute(path: string) {
   return path;
 }
 
-function getOrAdd<TKey, TValue>(
-  map: Map<TKey, TValue>,
-  key: TKey,
-  factory: (key: TKey) => TValue
-) {
-  const result = map.get(key);
-  if (result) return result;
-  const value = factory(key);
-  map.set(key, value);
-  return value;
+export function buildClosure(expression: string, depth = 0): string {
+  if (depth === 0) {
+    return `with($this){${expression}}`;
+  }
+
+  if (depth === 1) {
+    return `with($parents[0]){const $parent = $parents[0];${buildClosure(expression, 0)}}`;
+  }
+
+  return `with($parents[${depth - 1}]){${buildClosure(expression, depth - 1)}}`;
 }

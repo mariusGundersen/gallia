@@ -1,4 +1,4 @@
-import { globalObservationScope } from "../observable";
+import { globalObservationScope as scope } from "../observable";
 import { createElementFromHTML } from "../testUtils";
 import handleAttributes from "./handleAttribute";
 
@@ -8,6 +8,6 @@ test("handleAttribute", () => {
 
   expect(result.length).toBe(1);
 
-  result[0](element, { className: "value" }, globalObservationScope);
+  result[0](element, { data: { className: "value" }, parents: [], scope });
   expect(element.getAttribute("class")).toBe("value");
 });

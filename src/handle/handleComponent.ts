@@ -2,13 +2,16 @@ import { makeObservable } from "../observable.js";
 import { ensureAbsolute, isFunction, isNewable } from "../utils.js";
 import { CreateWalker, HandleGenerator } from "./index.js";
 
-export default function* handleComponent(node: Element, createWalker: CreateWalker): HandleGenerator {
+const componentNodes = new WeakSet<Element>();
+
+export default function* handleComponent(node: Element, createWalker: CreateWalker, depth = 0): HandleGenerator {
+  componentNodes.add(node);
   const path = node.getAttribute("x-component") as string;
-  const walk = createWalker(node);
-  yield (node, data, scope) => applyComponent(node as Element, path).then((subData) => {
+  const walk = createWalker(node, depth + 1);
+  yield (node, { data, parents, scope }) => applyComponent(node as Element, path).then((subData) => {
     const [subScope] = scope.createSubScope();
 
-    walk(node, subData, subScope);
+    walk(node, { data: subData, parents: [data, ...parents], scope: subScope });
 
     if ('$mounted' in subData && isFunction(subData['$mounted'])) {
       const unmounted = subData['$mounted']();
@@ -22,6 +25,11 @@ export default function* handleComponent(node: Element, createWalker: CreateWalk
     }
 
   });
+}
+
+export function isComponentNode(node: Element) {
+  if (componentNodes.has(node)) return false;
+  return node.hasAttribute("x-component");
 }
 
 export async function applyComponent(element: Element, path: string) {

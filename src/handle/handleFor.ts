@@ -1,9 +1,7 @@
 import { insertAfter } from "../domUtils.js";
 import listDiff from "../listDiff.js";
 import {
-  makeObservable,
-  ObservableObject,
-  ObservationScope,
+  makeObservable
 } from "../observable.js";
 import { makeExpressionEvaluator, makeKeyEvaluator } from "../utils.js";
 import { CreateWalker, HandleGenerator } from "./index.js";
@@ -13,15 +11,16 @@ interface Source {
   startOfItem: Node;
   endOfItem: Node;
   observable: {
-    value: unknown;
-    index: number;
+    [k: string]: unknown;
+    $index: number;
   };
   destroy: () => void;
 }
 
 export function* handleFor(
   element: HTMLTemplateElement,
-  createWalker: CreateWalker
+  createWalker: CreateWalker,
+  depth = 0
 ): HandleGenerator {
   const forExpression = element.getAttribute("x-for");
   if (!forExpression) return;
@@ -30,7 +29,7 @@ export function* handleFor(
     /^(\w+)\s+of\s+(.*)$/.exec(forExpression) ?? [];
   if (!isFor) return;
 
-  const expression = makeExpressionEvaluator(collection);
+  const expression = makeExpressionEvaluator(collection, depth);
   const getKey = getKeyEvaluator(name, element);
 
   const documentFragment = element.content;
@@ -41,9 +40,9 @@ export function* handleFor(
     documentFragment.ownerDocument.createComment(`end of item`)
   );
 
-  const walk = createWalker(documentFragment);
+  const walk = createWalker(documentFragment, depth + 1);
 
-  yield (node: Node, data: ObservableObject, scope: ObservationScope) => {
+  yield (node, { data, parents, scope }) => {
     const element = node as HTMLTemplateElement;
     const parent = element.parentNode;
     const before: Node = element.ownerDocument.createComment(
@@ -57,7 +56,7 @@ export function* handleFor(
     let oldMap = new Map<unknown, number>();
     const keyedValues = new Map<unknown, Source>();
     scope.observeAndReact(
-      () => expression(data) as unknown[],
+      () => expression(data, parents) as unknown[],
       (items) => {
         let index = 0;
         let endOfPreviousItem = before;
@@ -80,21 +79,19 @@ export function* handleFor(
               endOfItem,
               destroy,
               observable: makeObservable({
-                value,
-                index,
+                [name]: value,
+                $index: index,
               }),
             };
 
             keyedValues.set(key, source);
-
-            const subData = createSubData(data, name, source);
 
             // remember the childNodes so that we can send them to the handlers
             const fragment = rememberTheChildren(clone);
 
             insertAfter(endOfPreviousItem, clone);
 
-            walk(fragment, subData, subScope);
+            walk(fragment, { data: source.observable, parents: [data, ...parents], scope: subScope });
 
             endOfPreviousItem = endOfItem;
             index++;
@@ -102,10 +99,10 @@ export function* handleFor(
           move(key, i) {
             const value = items[i];
             const source = keyedValues.get(key) as Source;
-            source.observable.index = index;
+            source.observable.$index = index;
             if (source.value !== value) {
               source.value = value;
-              source.observable.value = value;
+              source.observable[name] = value;
             }
 
             moveItemAfter(
@@ -121,9 +118,12 @@ export function* handleFor(
             // item has not moved
             const value = items[i];
             const source = keyedValues.get(key) as Source;
+            if (source.observable.$index !== index) {
+              source.observable.$index = index;
+            }
             if (source.value !== value) {
               source.value = value;
-              source.observable.value = value;
+              source.observable[name] = value;
             }
 
             endOfPreviousItem = source.endOfItem;
@@ -144,26 +144,6 @@ export function* handleFor(
 }
 
 const indexKeyExpression = (_: unknown, $index: number) => $index as unknown;
-
-function createSubData(data: ObservableObject, name: string, source: Source) {
-  return Object.create(data, {
-    [name]: {
-      get() {
-        return source.observable.value;
-      },
-    },
-    $index: {
-      get() {
-        return source.observable.index;
-      },
-    },
-    $parent: {
-      get() {
-        return data;
-      },
-    },
-  });
-}
 
 function rememberTheChildren(clone: Node): Node {
   const list = clone.childNodes;

@@ -9,7 +9,7 @@ export default function start(
   element: Element = document.documentElement,
   scope = globalObservationScope
 ) {
-  createWalker(element, 1)(element, {}, scope);
+  createWalker(element, -1)(element, { data: {}, parents: [], scope });
 }
 
 export { Observable, makeObservable };

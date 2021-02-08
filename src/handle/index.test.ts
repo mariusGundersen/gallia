@@ -1,4 +1,4 @@
-import { globalObservationScope } from "../observable.js";
+import { globalObservationScope as scope } from "../observable.js";
 import handle from "./index.js";
 
 test("when handler is called with a text node it should return one result", () => {
@@ -16,7 +16,19 @@ test("when handler is called it should update the text", () => {
 
   expect(node.textContent).toBe("hello ${what}");
 
-  result(node, { what: "world" }, globalObservationScope);
+  result(node, { data: { what: "world" }, parents: [], scope });
+
+  expect(node.textContent).toBe("hello world");
+});
+
+test("when handler is called with data in parent it should update the text", () => {
+  const node = document.createTextNode("${greeting} ${what}");
+
+  const [result] = [...handle(node, 1)];
+
+  expect(node.textContent).toBe("${greeting} ${what}");
+
+  result(node, { data: { what: "world" }, parents: [{ greeting: "hello" }], scope });
 
   expect(node.textContent).toBe("hello world");
 });
@@ -30,7 +42,7 @@ test("when handler is called with another text node it should update that text t
 
   expect(anotherNode.textContent).toBe("hello ${what}");
 
-  result(anotherNode, { what: "world" }, globalObservationScope);
+  result(anotherNode, { data: { what: "world" }, parents: [], scope });
 
   expect(anotherNode.textContent).toBe("hello world");
 });
@@ -45,7 +57,7 @@ test("when handler is called with a node tree it should update the correct node"
 
   expect(node.textContent).toBe("hello ${what}");
 
-  result(parent, { what: "world" }, globalObservationScope);
+  result(parent, { data: { what: "world" }, parents: [], scope });
 
   expect(node.textContent).toBe("hello world");
 });

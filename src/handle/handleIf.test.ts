@@ -1,11 +1,10 @@
 import {
-  globalObservationScope,
-  makeObservable,
-  ObservableObject,
-  ObservationScope,
+  globalObservationScope as scope,
+  makeObservable
 } from "../observable";
 import { createElementFromHTML } from "../testUtils";
 import { handleIf } from "./handleIf";
+import { HandlerContext } from "./index";
 
 describe("if", () => {
   test.each([true, false])("if %s", (visible) => {
@@ -28,7 +27,7 @@ describe("if", () => {
       ),
     ];
 
-    result(parent.firstElementChild as Node, data, globalObservationScope);
+    result(parent.firstElementChild as Node, { data, parents: [], scope });
 
     expect(parent.innerHTML).toMatchSnapshot();
   });
@@ -48,8 +47,8 @@ describe("if", () => {
 
     const spy = jest.fn();
     const handlerSpy = jest.fn(function () {
-      return (node: Node, data: ObservableObject, scope: ObservationScope) =>
-        spy(node.childNodes[0], data, scope);
+      return (node: Node, context: HandlerContext) =>
+        spy(node.childNodes[0], context);
     });
 
     const [result] = [
@@ -58,13 +57,13 @@ describe("if", () => {
 
     expect(handlerSpy).toHaveBeenCalled();
 
-    result(parent.firstElementChild as Node, data, globalObservationScope);
+    result(parent.firstElementChild as Node, { data, parents: [], scope });
 
     expect(spy).toHaveBeenCalled();
     expect(spy.mock.calls[0][0]).toBe(
       parent.firstChild?.nextSibling?.nextSibling
     );
-    expect(spy.mock.calls[0][1]).toBe(data);
+    expect(spy.mock.calls[0][1].data).toBe(data);
   });
 
   test("if false then true", () => {
@@ -87,7 +86,7 @@ describe("if", () => {
       ),
     ];
 
-    result(parent.firstElementChild as Node, data, globalObservationScope);
+    result(parent.firstElementChild as Node, { data, parents: [], scope });
 
     data.visible = true;
 
@@ -116,7 +115,7 @@ describe("if", () => {
       ...handleIf(parent.firstElementChild as HTMLTemplateElement, handlerSpy),
     ];
 
-    result(parent.firstElementChild as Node, data, globalObservationScope);
+    result(parent.firstElementChild as Node, { data, parents: [], scope });
 
     data.visible = false;
     data.visible = true;
@@ -141,11 +140,11 @@ describe("if", () => {
 
     const [result] = [
       ...handleIf(parent.firstElementChild as HTMLTemplateElement, function () {
-        return (_node, _data, scope) => scope.onDestroy(spy);
+        return (_, { scope }) => scope.onDestroy(spy);
       }),
     ];
 
-    result(parent.firstElementChild as Node, data, globalObservationScope);
+    result(parent.firstElementChild as Node, { data, parents: [], scope });
 
     data.visible = false;
 
@@ -154,5 +153,5 @@ describe("if", () => {
 });
 
 function createEmptyWalker(node: Node) {
-  return () => {};
+  return () => { };
 }

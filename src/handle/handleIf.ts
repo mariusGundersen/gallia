@@ -1,20 +1,20 @@
-import { ObservableObject, ObservationScope } from "../observable.js";
 import { makeExpressionEvaluator } from "../utils.js";
 import { CreateWalker, HandleGenerator } from "./index.js";
 
 export function* handleIf(
   element: HTMLTemplateElement,
-  createWalker: CreateWalker
+  createWalker: CreateWalker,
+  depth = 0
 ): HandleGenerator {
   const ifExpression = element.getAttribute("x-if");
   if (!ifExpression) return;
 
-  const ifEvaluator = makeExpressionEvaluator(ifExpression);
+  const ifEvaluator = makeExpressionEvaluator(ifExpression, depth);
 
   const documentFragment = element.content;
-  const walk = createWalker(documentFragment);
+  const walk = createWalker(documentFragment, depth);
 
-  yield (node: Node, data: ObservableObject, scope: ObservationScope) => {
+  yield (node, { data, parents, scope }) => {
     const element = node as HTMLTemplateElement;
     const parent = element.parentNode;
     const before = element.ownerDocument.createComment(
@@ -25,7 +25,7 @@ export function* handleIf(
     parent!.replaceChild(after, element);
     let destroyScope: (() => void) | null = null;
     scope.observeAndReact(
-      () => ifEvaluator(data),
+      () => ifEvaluator(data, parents),
       (show) => {
         if (show && !destroyScope) {
           const clone = documentFragment.cloneNode(true);
@@ -42,7 +42,7 @@ export function* handleIf(
 
           parent!.insertBefore(clone, after);
 
-          walk(fragmentAsNode, data, subScope);
+          walk(fragmentAsNode, { data, parents, scope: subScope });
         } else if (!show && destroyScope) {
           while (before.nextSibling !== after && before.nextSibling) {
             parent!.removeChild(before.nextSibling);

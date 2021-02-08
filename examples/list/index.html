@@ -5,9 +5,9 @@
   <ul>
     <template x-for="item of list" x-key="item.id">
       <li x-component="./item.js">
-        <span>${time}</span>
+        <span>${$index}, key: ${item.id}: ${time}</span>
+        <button .on-click="remove($index)">remove</button>
       </li>
-      <button .on-click="$parent.remove($index)">remove</button>
     </template>
   </ul>
 </div>
